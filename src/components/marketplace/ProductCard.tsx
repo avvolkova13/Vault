@@ -49,7 +49,7 @@ export function ProductCard({
   priority?: boolean;
   headingLevel?: 2 | 3;
 }) {
-  const { cart, addToCart, notify } = useMarketplace();
+  const { cart, addToCart } = useMarketplace();
   const selected = cart.some((item) => item.id === product.id);
   const ProductTitle = `h${headingLevel}` as "h2" | "h3";
 
@@ -57,14 +57,6 @@ export function ProductCard({
     <article className={`${styles.productCard} ${compact ? styles.compactCard : ""}`}>
       <div className={styles.productMedia}>
         <span className={styles.productCategory}>{product.category}</span>
-        <button
-          type="button"
-          className={styles.favoriteButton}
-          aria-label={`Добавить ${product.title} в избранное`}
-          onClick={() => notify(`Товар «${product.title}» добавлен в избранное.`)}
-        >
-          <Icon name="heart" width="18" height="18" />
-        </button>
         <Link
           className={styles.productVisualLink}
           href={`/catalog/${product.slug}`}

@@ -14,11 +14,11 @@ export const siteConfig = {
     hours: "Ежедневно, 10:00–22:00 (МСК)",
   },
   paymentMethods: [
-    { name: "Visa", src: "/payments/visa.png", width: 58, height: 20 },
-    { name: "Mastercard", src: "/payments/mastercard.png", width: 42, height: 26 },
-    { name: "МИР", src: "/payments/mir.png", width: 50, height: 20 },
-    { name: "СБП", src: "/payments/sbp.png", width: 46, height: 22 },
-    { name: "Steam", src: "/payments/steam.png", width: 60, height: 20 },
+    { name: "Visa", src: "/payments/visa.svg" },
+    { name: "Mastercard", src: "/payments/mastercard.svg" },
+    { name: "МИР", src: "/payments/mir.svg" },
+    { name: "СБП", src: "/payments/sbp.svg" },
+    { name: "Steam", src: "/payments/steam.svg" },
   ] as const,
   valveDisclaimer:
     "Наш сайт не связан, не аффилирован и не одобрен Valve Corporation или Steam.",

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import { catalogProducts } from "@/data/products";
+import { siteConfig } from "@/config/site";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { MarketplaceSearch } from "@/components/marketplace/MarketplaceSearch";
 import { CartButton } from "@/components/marketplace/CartButton";
@@ -78,19 +79,19 @@ export function SiteHeader() {
           <div className={styles.desktopSearch}>
             <HeaderSearch />
           </div>
-          <button
-            type="button"
-            className={styles.iconAction}
-            onClick={() => setMessage("Избранное пока пусто.")}
-          >
-            <Icon name="heart" width="21" height="21" />
-            <span>Избранное</span>
-          </button>
-          <Link className={styles.balance} href="/balance/top-up" aria-label={`Баланс: ${balanceCoins.toLocaleString("ru-RU")} Coins. Пополнить`}>
-            <Icon name="coin" width="20" height="20" />
-            <span>Баланс</span>
-            <strong>{balanceCoins.toLocaleString("ru-RU")} Coins</strong>
-          </Link>
+          {isHydrated && session ? (
+            <Link className={styles.balance} href="/balance/top-up" aria-label={`Баланс: ${balanceCoins.toLocaleString("ru-RU")} Coins. Пополнить`}>
+              <Icon name="coin" width="20" height="20" />
+              <span>Баланс</span>
+              <strong>{balanceCoins.toLocaleString("ru-RU")} Coins</strong>
+            </Link>
+          ) : (
+            <Link className={`${styles.balance} ${styles.balanceGuest}`} href="/auth?returnTo=%2Fbalance%2Ftop-up" aria-label={`Курс Coins: 1 ₽ = ${siteConfig.coin.rate} Coins`}>
+              <Icon name="coin" width="20" height="20" />
+              <span>Курс Coins</span>
+              <strong>1 ₽ = {siteConfig.coin.rate.toLocaleString("ru-RU")}</strong>
+            </Link>
+          )}
           <CartButton />
           <Link
             className={styles.accountButton}
@@ -131,9 +132,15 @@ export function SiteHeader() {
             <Link href="/catalog?category=steam" onClick={() => setMenuOpen(false)}>Пополнение Steam</Link>
             <Link href="/catalog?category=skins" onClick={() => setMenuOpen(false)}>Игровые предметы</Link>
             <Link href="/catalog?category=gpt" onClick={() => setMenuOpen(false)}>GPT</Link>
-            <Link className={styles.mobileAccountLink} href="/balance/top-up" onClick={() => setMenuOpen(false)}>
-              Баланс: {balanceCoins.toLocaleString("ru-RU")} Coins
-            </Link>
+            {isHydrated && session ? (
+              <Link className={styles.mobileAccountLink} href="/balance/top-up" onClick={() => setMenuOpen(false)}>
+                Баланс: {balanceCoins.toLocaleString("ru-RU")} Coins
+              </Link>
+            ) : (
+              <Link className={styles.mobileAccountLink} href="/auth?returnTo=%2Fbalance%2Ftop-up" onClick={() => setMenuOpen(false)}>
+                Курс Coins: 1 ₽ = {siteConfig.coin.rate.toLocaleString("ru-RU")}
+              </Link>
+            )}
             <Link className={styles.mobileAccountLink} href={accountHref} onClick={() => setMenuOpen(false)}>
               {isHydrated ? accountLabel : "Аккаунт"}
             </Link>

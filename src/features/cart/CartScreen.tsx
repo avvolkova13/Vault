@@ -177,15 +177,22 @@ export function CartScreen({ showTopUpNotice = false }: { showTopUpNotice?: bool
                 <p><strong>{formatCoins(cartTotalCoins)}</strong> Coins</p>
               </div>
 
-              <div className={styles.consentBox} id="cart-consent-helper">
-                <Checkbox
-                  checked={accepted}
-                  onChange={(event) => setAccepted(event.target.checked)}
-                  label={<>Я принимаю условия <Link href="/legal/terms" target="_blank" rel="noopener noreferrer">Пользовательского соглашения (Оферты)</Link> и даю согласие на обработку персональных данных в соответствии с <Link href="/legal/privacy" target="_blank" rel="noopener noreferrer">Политикой конфиденциальности</Link>.</>}
-                />
-              </div>
+              {isAuthenticated ? (
+                <div className={styles.consentBox} id="cart-consent-helper">
+                  <Checkbox
+                    checked={accepted}
+                    onChange={(event) => setAccepted(event.target.checked)}
+                    label={<>Я принимаю условия <Link href="/legal/terms" target="_blank" rel="noopener noreferrer">Пользовательского соглашения (Оферты)</Link> и даю согласие на обработку персональных данных в соответствии с <Link href="/legal/privacy" target="_blank" rel="noopener noreferrer">Политикой конфиденциальности</Link>.</>}
+                  />
+                </div>
+              ) : null}
 
-              {!hasSufficientBalance ? (
+              {!isAuthenticated ? (
+                <div className={styles.authNotice} id="auth-required-note">
+                  <strong>Войдите для пополнения и покупки</strong>
+                  <span>После авторизации вы сможете пополнить Coins и оформить заказ.</span>
+                </div>
+              ) : !hasSufficientBalance ? (
                 <div className={styles.shortfallNotice} id="insufficient-coins-note">
                   <strong>Не хватает {formatCoins(cartShortfallCoins)} Coins</strong>
                   <span>Пополните баланс — товары останутся в корзине.</span>
@@ -194,11 +201,6 @@ export function CartScreen({ showTopUpNotice = false }: { showTopUpNotice?: bool
                 <div className={styles.authNotice} id="steam-required-note">
                   <strong>Для этого заказа нужен Steam</strong>
                   <span>Steam обязателен для покупки и получения игровых предметов.</span>
-                </div>
-              ) : !isAuthenticated ? (
-                <div className={styles.authNotice} id="auth-required-note">
-                  <strong>Войдите для покупки</strong>
-                  <span>Корзина и баланс сохранятся после авторизации.</span>
                 </div>
               ) : (
                 <div className={styles.readyNotice}>
@@ -210,6 +212,15 @@ export function CartScreen({ showTopUpNotice = false }: { showTopUpNotice?: bool
               <div className={styles.summaryActions}>
                 {canPurchase ? (
                   <Button className={styles.primaryLink} type="button" disabled={!accepted} aria-describedby={!accepted ? "cart-consent-helper" : undefined} onClick={() => router.push("/checkout")}>Перейти к оформлению</Button>
+                  ) : !isAuthenticated ? (
+                    <Button
+                      className={styles.primaryLink}
+                      type="button"
+                      aria-describedby="auth-required-note"
+                      onClick={() => router.push(`/auth?method=${requiresSteam ? "steam" : "email"}&returnTo=%2Fcart${requiresSteam ? "&required=steam" : ""}`)}
+                    >
+                      {requiresSteam ? "Войти через Steam" : "Войти в аккаунт"}
+                    </Button>
                   ) : !hasSufficientBalance ? (
                     <Button
                       className={styles.primaryLink}

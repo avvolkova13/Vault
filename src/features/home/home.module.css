@@ -25,13 +25,16 @@
   position: relative;
   z-index: 1;
   grid-template-columns: minmax(0, 0.95fr) minmax(600px, 1.05fr);
-  align-items: center;
+  align-items: stretch;
   gap: clamp(34px, 5vw, 76px);
-  min-height: 420px;
+  min-height: 0;
 }
 
 .heroContent {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+  min-height: 0;
 }
 
 .heroSignal {
@@ -174,7 +177,7 @@
   display: flex;
   align-items: center;
   gap: 17px;
-  margin-top: 15px;
+  margin-top: auto;
   color: var(--text-secondary);
   font-size: 0.75rem;
 }
@@ -196,6 +199,7 @@
 }
 
 .inventory {
+  align-self: start;
   min-width: 0;
   border: 1px solid #2a3341;
   border-radius: 15px;
@@ -1049,6 +1053,10 @@
   .heroGrid {
     grid-template-columns: 1fr;
     gap: 34px;
+    min-height: auto;
+  }
+
+  .heroContent {
     min-height: auto;
   }
 

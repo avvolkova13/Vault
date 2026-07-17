@@ -37,7 +37,7 @@ export function SiteFooter() {
           <div className={styles.paymentMethods} aria-label="Доступные способы оплаты">
             {siteConfig.paymentMethods.map((method) => (
               <span className={styles.paymentLogo} key={method.name} title={method.name}>
-                <Image src={method.src} alt={method.name} width={method.width} height={method.height} />
+                <Image src={method.src} alt={method.name} width={38} height={22} />
               </span>
             ))}
           </div>

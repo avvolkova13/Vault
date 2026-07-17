@@ -2,7 +2,6 @@ import Link from "next/link";
 
 import { ProductCard } from "@/components/marketplace/ProductCard";
 import { Container } from "@/components/ui/UI";
-import { siteConfig } from "@/config/site";
 import { popularProducts } from "@/data/home";
 
 import styles from "./home.module.css";
@@ -27,19 +26,6 @@ export function Hero() {
           </p>
           <div className={styles.heroActions}>
             <Link className={styles.primaryLink} href="/catalog">Перейти в каталог</Link>
-          </div>
-          <ol className={styles.heroFlow} aria-label="Как проходит покупка">
-            <li><strong>01</strong><span>Выберите товар</span></li>
-            <li><strong>02</strong><span>Оплатите Coins</span></li>
-            <li><strong>03</strong><span>Получите цифровой товар</span></li>
-          </ol>
-          <div className={styles.heroOffers} aria-label="Быстрый выбор суммы Steam">
-            {[500, 1000, 2500].map((amount) => (
-              <a href="#steam-top-up" key={amount}>
-                <span>Steam {amount.toLocaleString("ru-RU")} ₽</span>
-                <strong>{(amount * siteConfig.coin.rate).toLocaleString("ru-RU")} Coins</strong>
-              </a>
-            ))}
           </div>
           <nav className={styles.quickSearches} aria-label="Популярные категории">
             <Link href="/catalog?category=steam">Steam</Link>
