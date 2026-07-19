@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
 import { useMarketplace } from "@/components/marketplace/MarketplaceProvider";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Breadcrumbs, Container, Skeleton } from "@/components/ui/UI";
+import { createAccountAuthReturnPath } from "@/lib/auth";
 
 import styles from "./account.module.css";
 
@@ -21,11 +22,11 @@ const accountNav = [
 ] satisfies ReadonlyArray<{ href: string; label: string; icon: IconName }>;
 
 const pageTitles: Record<string, { title: string; description: string }> = {
-  "/account": { title: "Личный кабинет", description: "Покупки, баланс Coins и готовность Steam в одном месте." },
+  "/account": { title: "Личный кабинет", description: "Локальные покупки, баланс Coins и настройки Steam в одном месте." },
   "/account/purchases": { title: "Мои покупки", description: "Все заказы, их статусы и доступные действия." },
   "/account/payments": { title: "История Coins", description: "Зачисления и списания внутреннего баланса Vault." },
   "/account/inventory": { title: "Инвентарь", description: "Предметы из выполненных заказов и настройка данных Steam." },
-  "/account/steam": { title: "Steam", description: "Подключённый профиль и Steam Trade URL для передачи предметов." },
+  "/account/steam": { title: "Steam", description: "Профиль и Steam Trade URL, сохранённые для заказов игровых предметов." },
   "/account/settings": { title: "Настройки", description: "Способы входа, безопасность и управление аккаунтом." },
   "/account/support": { title: "Поддержка", description: "Быстрые ответы и данные, которые понадобятся для обращения." },
 };
@@ -55,16 +56,18 @@ function AccountLoading() {
 export function AccountShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { balanceCoins, session, isHydrated, isAuthenticated } = useMarketplace();
+  const searchParams = useSearchParams();
+  const { balanceCoins, session, isHydrated, isAuthenticated, hasSeedData } = useMarketplace();
   const page = pageTitles[pathname] ?? pageTitles["/account"];
   const displayName = session?.steamAccount?.displayName ?? session?.emailAccount?.displayName ?? "Покупатель";
-  const returnTo = encodeURIComponent(accountNav.some((item) => item.href === pathname) ? pathname : "/account");
+  const nestedReturnTo = searchParams.get("returnTo");
+  const returnTo = encodeURIComponent(createAccountAuthReturnPath(pathname, nestedReturnTo));
 
   useEffect(() => {
     if (isHydrated && !isAuthenticated) {
-      router.replace(`/auth?returnTo=${returnTo}`);
+      router.replace(`/auth?returnTo=${encodeURIComponent(createAccountAuthReturnPath(pathname, nestedReturnTo))}`);
     }
-  }, [isAuthenticated, isHydrated, returnTo, router]);
+  }, [isAuthenticated, isHydrated, nestedReturnTo, pathname, router]);
 
   return (
     <main id="main-content" className={styles.page}>
@@ -79,6 +82,12 @@ export function AccountShell({ children }: { children: ReactNode }) {
           <strong>Единый аккаунт</strong>
           Покупки, Coins, инвентарь и настройки Steam доступны в одном месте.
         </p>
+        {isHydrated && isAuthenticated && hasSeedData ? (
+          <p className={styles.demoDisclosure} role="note">
+            <strong>Данные профиля</strong>
+            История и баланс этого профиля сохранены только в текущем браузере. Внешние платежи и выдача не подключены.
+          </p>
+        ) : null}
 
         {!isHydrated ? <AccountLoading /> : !isAuthenticated ? (
           <section className={styles.guestGate} aria-labelledby="account-login-title">

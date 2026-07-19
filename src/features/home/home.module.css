@@ -192,6 +192,11 @@
 }
 
 .quickSearches a {
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
   border: 1px solid transparent;
   border-radius: 6px;
   background: rgb(255 255 255 / 0.025);
@@ -374,6 +379,8 @@
 
 .filterGroups {
   display: flex;
+  min-width: 0;
+  max-width: 100%;
   align-items: stretch;
   gap: 14px;
 }
@@ -408,7 +415,7 @@
 }
 
 .filterButtons button {
-  min-height: 36px;
+  min-height: 44px;
   border: 0;
   border-radius: 6px;
   background: transparent;
@@ -479,6 +486,24 @@
   outline-offset: -3px;
 }
 
+.primaryLink:focus-visible,
+.secondaryLink:focus-visible,
+.quickSearches a:focus-visible,
+.categoryCard:focus-visible,
+.newCopy h3 a:focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 3px;
+}
+
+@media (max-width: 1024px) {
+  .newCopy h3 a {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+  }
+}
+
 .catalogCtaEyebrow {
   margin-bottom: 17px;
   color: #8fa5ca;
@@ -513,7 +538,7 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  min-height: 42px;
+  min-height: 44px;
   margin-top: 24px;
   border: 1px solid #4967a4;
   border-radius: 7px;
@@ -672,7 +697,7 @@
 }
 
 .amounts button {
-  min-height: 36px;
+  min-height: 44px;
   border: 1px solid var(--border);
   border-radius: 7px;
   background: #0c1118;
@@ -739,6 +764,7 @@
 .steamForm > button {
   width: 100%;
 }
+.steamCatalogLink { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; margin-top: 10px; border: 1px solid var(--border-strong); border-radius: var(--radius-control); color: #c7d4f6; font-size: .78rem; font-weight: 700; }
 
 .converterSection {
   padding-block: 34px;
@@ -788,7 +814,7 @@
 }
 
 .modeSwitch button {
-  min-height: 37px;
+  min-height: 44px;
   border: 0;
   border-radius: 6px;
   background: transparent;
@@ -889,6 +915,10 @@
   font-size: 0.9rem;
 }
 
+@media (max-width: 720px) {
+  .newCopy h3 a { display: inline-flex; min-height: 44px; align-items: center; }
+}
+
 .newCopy p {
   margin: 0;
   color: var(--text-secondary);
@@ -913,7 +943,7 @@
 }
 
 .newItem > button {
-  min-height: 38px;
+  min-height: 44px;
   font-size: 0.76rem;
 }
 
@@ -977,7 +1007,7 @@
 
 .faqTab {
   flex: 1 1 0;
-  min-height: 38px;
+  min-height: 44px;
   border: 0;
   border-radius: 5px;
   background: transparent;
@@ -1087,7 +1117,7 @@
     max-width: 720px;
   }
 
-  .categoryGrid {
+.categoryGrid {
     display: flex;
     overflow-x: auto;
     padding-bottom: 6px;
@@ -1180,6 +1210,9 @@
 
   .categoryGrid {
     display: flex;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
   }
@@ -1204,6 +1237,7 @@
   }
 
   .filterGroups {
+    width: 100%;
     max-width: 100%;
     overflow-x: auto;
   }
@@ -1292,6 +1326,7 @@
 
   .faqTab {
     flex: 1 1 0;
+    min-height: 44px;
     padding-inline: 12px;
   }
 

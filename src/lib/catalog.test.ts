@@ -4,12 +4,26 @@ import test from "node:test";
 import { catalogProducts } from "../data/products.ts";
 import {
   createDefaultCatalogFilters,
+  createCanonicalCatalogReturnPath,
   filterAndSortCatalog,
   getProductStatusLabel,
+  getCatalogScrollStorageKey,
+  shouldStoreCatalogScroll,
+  parseCatalogScrollPosition,
   hasActiveCatalogFilters,
   parseCatalogSearchParams,
   serializeCatalogFilters,
+  sanitizeCatalogReturnPath,
+  searchCatalogProducts,
 } from "./catalog.ts";
+
+test("автодополнение канонизирует returnTo тем же порядком, что и каталог", () => {
+  assert.equal(
+    createCanonicalCatalogReturnPath("/catalog", "sort=price-desc&category=skins&q=old", "AWP"),
+    "/catalog?q=AWP&category=skins&sort=price-desc",
+  );
+});
+import { searchProducts } from "./marketplace.ts";
 
 test("URL-параметры каталога разбираются в безопасные фильтры", () => {
   const filters = parseCatalogSearchParams(new URLSearchParams([
@@ -147,6 +161,18 @@ test("поиск Автомат возвращает только AK-47 и M4A1-
   ]);
 });
 
+test("точный поиск по игре не смешивает игровые каталоги", () => {
+  const expected = {
+    CS2: ["ak-redline", "awp-asiimov", "m4-printstream", "deagle-printstream"],
+    "Dota 2": ["dota-pa-manifold-paradox", "dota-pudge-feast-of-abscession"],
+    Rust: ["rust-tempered-ak47", "rust-alien-red-ak"],
+  } as const;
+  for (const [query, ids] of Object.entries(expected)) {
+    const result = filterAndSortCatalog(catalogProducts, { ...createDefaultCatalogFilters(), query });
+    assert.deepEqual(result.map((product) => product.id).sort(), [...ids].sort());
+  }
+});
+
 test("поиск, фасеты, цена и сортировка работают совместно", () => {
   const result = filterAndSortCatalog(catalogProducts, {
     ...createDefaultCatalogFilters(),
@@ -239,9 +265,9 @@ test("статус отображения выводится из наличия
   const gpt = catalogProducts.find((product) => product.id === "gpt-plus");
 
   assert.ok(skin && steam && gpt);
-  assert.equal(getProductStatusLabel(skin), "В наличии");
-  assert.equal(getProductStatusLabel(steam), "Автовыдача");
-  assert.equal(getProductStatusLabel(gpt), "Под заказ");
+  assert.equal(getProductStatusLabel(skin), "Доступен к оформлению");
+  assert.equal(getProductStatusLabel(steam), "Доступен к оформлению");
+  assert.equal(getProductStatusLabel(gpt), "Локальный заказ");
 });
 
 test("статус под заказ имеет приоритет над способом выдачи", () => {
@@ -251,7 +277,37 @@ test("статус под заказ имеет приоритет над спо
   assert.equal(getProductStatusLabel({
     ...steam,
     availability: "on-request",
-  }), "Под заказ");
+  }), "Локальный заказ");
+});
+
+test("возврат из карточки сохраняет только безопасный URL каталога", () => {
+  assert.equal(sanitizeCatalogReturnPath("/catalog?category=skins&q=CS2"), "/catalog?category=skins&q=CS2");
+  assert.equal(sanitizeCatalogReturnPath("/account"), "/catalog");
+  assert.equal(sanitizeCatalogReturnPath("https://example.com/catalog"), "/catalog");
+});
+
+test("позиция каталога привязана к безопасному контексту и проходит валидацию", () => {
+  assert.equal(
+    getCatalogScrollStorageKey("/catalog?category=skins&q=CS2"),
+    "vault:catalog-scroll:/catalog?category=skins&q=CS2",
+  );
+  assert.equal(getCatalogScrollStorageKey("https://example.com"), "vault:catalog-scroll:/catalog");
+  assert.equal(parseCatalogScrollPosition("1240"), 1240);
+  assert.equal(parseCatalogScrollPosition("-10"), null);
+  assert.equal(parseCatalogScrollPosition("not-a-number"), null);
+  assert.equal(shouldStoreCatalogScroll("/catalog", "/catalog?category=skins"), true);
+  assert.equal(shouldStoreCatalogScroll("/catalog/ak-47-redline", "/catalog?category=skins"), false);
+});
+
+test("autocomplete and catalog use the same search engine and result limit", () => {
+  for (const query of ["Steam", "Пистолет", "автомат", "print", "Dota 2", "no-result"]) {
+    assert.deepEqual(
+      searchProducts(catalogProducts, query).map((product) => product.id),
+      searchCatalogProducts(catalogProducts, query).map((product) => product.id),
+    );
+  }
+  assert.equal(searchCatalogProducts(catalogProducts, "", 5).length, 5);
+  assert.equal(searchCatalogProducts(catalogProducts, "Steam", 5).length, 4);
 });
 
 test("все товары явно отмечены как демонстрационные", () => {

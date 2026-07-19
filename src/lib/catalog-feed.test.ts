@@ -19,15 +19,12 @@ test("catalog feed opens with two four-column rows", () => {
   assert.equal(getNextCatalogFeedSize(8), 16);
 });
 
-test("catalog feed cycles mock inventory and gives every occurrence a stable key", () => {
+test("catalog feed shows each matching product once and stops at the end", () => {
   const entries = createCatalogFeedEntries(products, 8);
 
-  assert.deepEqual(entries.map((entry) => entry.item.id), [
-    "ak", "awp", "steam", "ak", "awp", "steam", "ak", "awp",
-  ]);
-  assert.deepEqual(entries.map((entry) => entry.key), [
-    "ak-0", "awp-0", "steam-0", "ak-1", "awp-1", "steam-1", "ak-2", "awp-2",
-  ]);
+  assert.deepEqual(entries.map((entry) => entry.item.id), ["ak", "awp", "steam"]);
+  assert.deepEqual(entries.map((entry) => entry.key), ["ak", "awp", "steam"]);
+  assert.equal(getNextCatalogFeedSize(8, products.length), products.length);
 });
 
 test("catalog feed handles empty inventory and invalid window sizes safely", () => {

@@ -10,14 +10,16 @@ const readyInput = {
   isAuthenticated: true,
   requiresSteam: false,
   hasSteam: false,
+  hasTradeUrl: false,
 };
 
 test("checkout сначала отклоняет пустую корзину", () => {
   assert.equal(getCheckoutGate({ ...readyInput, itemCount: 0, totalCoins: 0 }), "empty");
 });
 
-test("checkout проверяет Coins до авторизации и Steam", () => {
-  assert.equal(getCheckoutGate({ ...readyInput, balanceCoins: 100 }), "insufficient");
+test("checkout до входа сначала требует авторизацию и не уводит гостя к пополнению", () => {
+  assert.equal(getCheckoutGate({ ...readyInput, balanceCoins: 100, isAuthenticated: false }), "auth-required");
+  assert.equal(getCheckoutGate({ ...readyInput, balanceCoins: 100, isAuthenticated: true }), "insufficient");
 });
 
 test("checkout требует авторизацию", () => {
@@ -25,8 +27,11 @@ test("checkout требует авторизацию", () => {
 });
 
 test("checkout требует Steam только для игровых предметов", () => {
+  assert.equal(getCheckoutGate({ ...readyInput, balanceCoins: 100, requiresSteam: true, hasSteam: false }), "steam-required");
+  assert.equal(getCheckoutGate({ ...readyInput, balanceCoins: 100, requiresSteam: true, hasSteam: true }), "trade-url-required");
   assert.equal(getCheckoutGate({ ...readyInput, requiresSteam: true, hasSteam: false }), "steam-required");
-  assert.equal(getCheckoutGate({ ...readyInput, requiresSteam: true, hasSteam: true }), "ready");
+  assert.equal(getCheckoutGate({ ...readyInput, requiresSteam: true, hasSteam: true }), "trade-url-required");
+  assert.equal(getCheckoutGate({ ...readyInput, requiresSteam: true, hasSteam: true, hasTradeUrl: true }), "ready");
 });
 
 test("оформление доступно только после принятия условий", () => {

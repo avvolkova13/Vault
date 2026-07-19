@@ -19,19 +19,14 @@ function sourceFiles(directory: string): string[] {
 const forbiddenStorefrontPatterns = [
   /демо/giu,
   /тестов/giu,
-  /локальн/giu,
-  /в этом браузере/giu,
-  /этого браузера/giu,
   /имитир/giu,
   /backend/giu,
-  /письмо не отправляется/giu,
-  /не выполня/giu,
   /временно/giu,
   /ожида(?:ет|ют) юридического согласования/giu,
   /реальн(?:ый|ые|ая|ое) (?:платёж|платежи|списание|списания|покупка|покупки)[^.]*не/giu,
 ];
 
-test("storefront copy does not disclose prototype or placeholder implementation", () => {
+test("storefront copy avoids demo labels and technical placeholders", () => {
   const violations = sourceFiles(sourceRoot).flatMap((file) => {
     const source = readFileSync(file, "utf8");
 

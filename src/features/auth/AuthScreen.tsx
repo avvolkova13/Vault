@@ -11,6 +11,7 @@ import {
   MOCK_EMAIL_CODE,
   type AuthMethod,
   type AuthReturnPath,
+  type MarketplaceSession,
   validateEmail,
   validateMockCode,
 } from "@/lib/auth";
@@ -63,7 +64,7 @@ export function AuthScreen({
   const [code, setCode] = useState("");
   const [codeTouched, setCodeTouched] = useState(false);
   const [formError, setFormError] = useState("");
-  const emailProviderAvailable = true;
+  const localEmailCheckAvailable = true;
   const submitLock = useRef(false);
   const emailRef = useRef<HTMLInputElement>(null);
   const codeRef = useRef<HTMLInputElement>(null);
@@ -72,7 +73,9 @@ export function AuthScreen({
   const successRef = useRef<HTMLHeadingElement>(null);
 
   const skinItems = cart.filter((product) => product.kind === "skins");
-  const requiresSteamNow = steamRequired || (returnTo === "/cart" && skinItems.length > 0);
+  const requiresSteamNow = steamRequired || ((returnTo === "/cart" || returnTo === "/checkout") && skinItems.length > 0);
+  const requestedProviderPresent = (initialMethod === "steam" && hasSteam)
+    || (initialMethod === "email" && Boolean(session?.emailAccount));
   const emailError = validateEmail(email);
   const codeError = validateMockCode(code);
   const isLoading = status === "loading";
@@ -81,8 +84,14 @@ export function AuthScreen({
     if (status === "success") successRef.current?.focus();
   }, [status]);
 
+  useEffect(() => {
+    if (!isHydrated || !isAuthenticated || !returnTo || !requestedProviderPresent || (requiresSteamNow && !hasSteam)) return;
+    router.replace(returnTo);
+  }, [hasSteam, isAuthenticated, isHydrated, requestedProviderPresent, requiresSteamNow, returnTo, router]);
+
   function selectMethod(nextMethod: AuthMethod) {
     if (isLoading) return;
+    submitLock.current = false;
     setMethod(nextMethod);
     setStatus("idle");
     setFormError("");
@@ -115,12 +124,25 @@ export function AuthScreen({
     window.requestAnimationFrame(() => emailRef.current?.focus());
   }
 
-  async function finishAndReturn(targetMethod: AuthMethod) {
-    setStatus("success");
-    if (returnTo && (targetMethod === "steam" || !requiresSteamNow)) {
-      await new Promise((resolve) => window.setTimeout(resolve, 750));
-      router.replace(returnTo);
+  function finishAndReturn(committedSession: MarketplaceSession) {
+    const requestedProviderCommitted = initialMethod === "steam"
+      ? Boolean(committedSession.steamAccount)
+      : Boolean(committedSession.emailAccount);
+    if (!requestedProviderCommitted) {
+      submitLock.current = false;
+      setMethod(initialMethod);
+      setStatus("idle");
+      setFormError(initialMethod === "steam"
+        ? "Email подключён. Для продолжения подключите запрошенный Steam-профиль."
+        : "Steam подключён. Для продолжения подтвердите запрошенный Email.");
+      return;
     }
+    setStatus("success");
+    if (returnTo && requestedProviderCommitted && (!requiresSteamNow || Boolean(committedSession.steamAccount))) {
+      router.replace(returnTo);
+      return;
+    }
+    submitLock.current = false;
   }
 
   async function connectSteam() {
@@ -130,10 +152,15 @@ export function AuthScreen({
     setStatus("loading");
 
     try {
-      await new Promise((resolve) => window.setTimeout(resolve, 650));
-      connectSteamDemo();
-      notify("Steam-профиль подключён.");
-      await finishAndReturn("steam");
+      const result = await connectSteamDemo();
+      if (!result.ok) {
+        submitLock.current = false;
+        setStatus("error");
+        setFormError(result.message);
+        return;
+      }
+      notify("Steam-профиль подключён к аккаунту.");
+      finishAndReturn(result.session);
     } catch {
       submitLock.current = false;
       setStatus("error");
@@ -153,11 +180,9 @@ export function AuthScreen({
       }
       if (submitLock.current) return;
       submitLock.current = true;
-      setStatus("loading");
-      await new Promise((resolve) => window.setTimeout(resolve, 550));
       submitLock.current = false;
       setEmailStep("code");
-      setCode(MOCK_EMAIL_CODE);
+      setCode("");
       setStatus("idle");
       window.requestAnimationFrame(() => codeRef.current?.focus());
       return;
@@ -173,17 +198,22 @@ export function AuthScreen({
     setStatus("loading");
 
     try {
-      await new Promise((resolve) => window.setTimeout(resolve, 650));
-      signInWithEmail(email);
-      notify("Email подтверждён.");
+      const result = await signInWithEmail(email);
+      if (!result.ok) {
+        submitLock.current = false;
+        setStatus("error");
+        setFormError(result.message);
+        return;
+      }
+      notify("Email-сессия подтверждена.");
 
-      if (requiresSteamNow && !hasSteam) {
+      if (requiresSteamNow && !result.session.steamAccount) {
         submitLock.current = false;
         setMethod("steam");
         setStatus("idle");
-        notify("Email подтверждён. Для игровых предметов подключите Steam.");
+        notify("Email-сессия подтверждена. Для игровых предметов подключите Steam-профиль.");
       } else {
-        await finishAndReturn("email");
+        finishAndReturn(result.session);
       }
     } catch {
       submitLock.current = false;
@@ -192,8 +222,12 @@ export function AuthScreen({
     }
   }
 
-  function resetSession() {
-    signOut();
+  async function resetSession() {
+    if (isLoading) return;
+    if (!await signOut()) {
+      setFormError("Не удалось безопасно завершить сессию: браузер не сохранил изменение.");
+      return;
+    }
     submitLock.current = false;
     setStatus("idle");
     setEmailStep("email");
@@ -210,11 +244,11 @@ export function AuthScreen({
         <div className={styles.pageHeading}>
           <span>Аккаунт Vault</span>
           <h1>Войти в Vault</h1>
-          <p>Сохраняйте покупки и получайте игровые предметы через Steam.</p>
+          <p>Сохраняйте покупки, баланс Coins и настройки заказов в одном аккаунте.</p>
         </div>
         <p className={styles.demoDisclosure}>
-          <strong>Безопасный вход</strong>
-          Пароль Steam остаётся в Steam, а вход по Email подтверждается одноразовым кодом.
+          <strong>Локальная проверка входа</strong>
+          На этом этапе Steam API и отправка писем не подключены. Сессия сохраняется только в этом браузере.
         </p>
 
         {!isHydrated ? (
@@ -271,7 +305,7 @@ export function AuthScreen({
                   <div>
                     <span>Аккаунт активен</span>
                     <h2 ref={successRef} tabIndex={-1}>Вход выполнен</h2>
-                    <p>{method === "steam" ? "Steam-профиль подключён." : `Email ${email.toLocaleLowerCase()} подтверждён.`}</p>
+                    <p>{method === "steam" ? "Steam-профиль активирован." : `Email ${email.toLocaleLowerCase()} подтверждён кодом.`}</p>
                     {returnTo ? (
                       <p className={styles.returnNote}>Возвращаем в предыдущий раздел…</p>
                     ) : (
@@ -286,7 +320,7 @@ export function AuthScreen({
                 <div id="auth-panel-steam" role="tabpanel" aria-labelledby="auth-tab-steam" className={styles.panel} aria-busy={isLoading}>
                   <div className={styles.panelHeading}>
                     <span className={styles.steamMark}><Icon name="steam" width="30" height="30" /></span>
-                    <div><h3>Войти через Steam</h3><p>Steam обязателен для покупки и получения игровых предметов.</p></div>
+                    <div><h3>Проверить вход со Steam</h3><p>Подключите Steam-профиль для игровых покупок и получения предметов.</p></div>
                   </div>
                   <div className={styles.trustRow}>
                     <Icon name="shield" width="21" height="21" />
@@ -308,18 +342,18 @@ export function AuthScreen({
                   ) : (
                     <>
                       <Button className={styles.mainButton} type="button" disabled={isLoading} onClick={connectSteam}>
-                        {isLoading ? "Подключаем Steam…" : "Войти через Steam"}
+                        {isLoading ? "Активируем профиль…" : "Активировать Steam-профиль"}
                       </Button>
-                      <p className={styles.panelFootnote}>Безопасный вход через Steam. После авторизации профиль автоматически привяжется к Vault.</p>
+                      <p className={styles.panelFootnote}>Реальная авторизация Steam откроется здесь после подключения Steam API.</p>
                     </>
                   )}
-                  <p className={styles.panelFootnote}>После подключения вы сможете получать игровые предметы через Steam Trade.</p>
+                  <p className={styles.panelFootnote}>Подключение сохраняет Steam-профиль для настройки заказов игровых предметов.</p>
                 </div>
               ) : (
                 <form id="auth-panel-email" role="tabpanel" aria-labelledby="auth-tab-email" className={styles.panel} aria-busy={isLoading} noValidate onSubmit={submitEmail}>
                   <div className={styles.panelHeading}>
                     <span className={styles.emailMark}>@</span>
-                    <div><h3>Войти по Email</h3><p>Получите одноразовый код. Пароль не нужен.</p></div>
+                    <div><h3>Проверить вход по Email</h3><p>Подтвердите email кодом, чтобы сохранить покупки и настройки аккаунта.</p></div>
                   </div>
                   {session?.emailAccount ? (
                     <>
@@ -352,17 +386,17 @@ export function AuthScreen({
                           onBlur={() => setEmailTouched(true)}
                           onChange={(event) => setEmail(event.target.value)}
                         />
-                        <p id="email-helper">На этот адрес будут приходить коды входа и уведомления о заказах.</p>
+                        <p id="email-helper">Email определяет отдельный локальный аккаунт в этом браузере.</p>
                         {emailTouched && emailError ? <p id="email-error" className={styles.fieldError} role="alert">{emailError}</p> : null}
                       </div>
                       {emailStep === "code" ? (
                         <>
-                          <div className={styles.demoCode}><span>Код будет доступен после подключения почтового провайдера</span><strong>{email.toLocaleLowerCase()}</strong></div>
+                          <div className={styles.demoCode}><span>Код подтверждения</span><strong>{MOCK_EMAIL_CODE}</strong></div>
                           <button className={styles.changeEmailButton} type="button" disabled={isLoading} onClick={changeEmail}>
                             Изменить email
                           </button>
                           <div className={styles.field}>
-                            <label htmlFor="auth-code">Код из письма</label>
+                            <label htmlFor="auth-code">Код подтверждения</label>
                             <input
                               ref={codeRef}
                               id="auth-code"
@@ -378,16 +412,16 @@ export function AuthScreen({
                               onBlur={() => setCodeTouched(true)}
                               onChange={(event) => setCode(event.target.value)}
                             />
-                            <p id="code-helper">Введите шесть цифр из письма.</p>
+                            <p id="code-helper">Введите шесть цифр из сообщения.</p>
                             {codeTouched && codeError ? <p id="code-error" className={styles.fieldError} role="alert">{codeError}</p> : null}
                           </div>
                         </>
                       ) : null}
                       {formError ? <p className={styles.formError} role="alert">{formError}</p> : null}
-                      <Button className={styles.mainButton} type="submit" disabled={isLoading || !emailProviderAvailable}>
-                        {isLoading ? "Проверяем…" : !emailProviderAvailable ? "Вход по Email недоступен" : emailStep === "email" ? "Получить код" : "Подтвердить и войти"}
+                      <Button className={styles.mainButton} type="submit" disabled={isLoading || !localEmailCheckAvailable}>
+                        {isLoading ? "Проверяем…" : emailStep === "email" ? "Показать код" : "Подтвердить и войти"}
                       </Button>
-                      <p className={styles.panelFootnote}>Вход по Email появится после подключения почтового провайдера.</p>
+                      <p className={styles.panelFootnote}>Код действует только для подтверждения этого входа.</p>
                     </>
                   )}
                 </form>
@@ -399,7 +433,7 @@ export function AuthScreen({
                 <div className={styles.requiredContext}>
                   <span>Требование заказа</span>
                   <h2 id="auth-context-title">Для этого заказа нужен Steam</h2>
-                  <p>{returnTo === "/cart" ? "После подключения вернём вас в корзину." : "После подключения игровые предметы станут доступны к покупке."}</p>
+                  <p>{returnTo === "/cart" ? "После подключения вернём вас в корзину." : "После подключения игровые предметы можно будет добавить в локальный заказ."}</p>
                   {skinItems.length ? <strong>{gameItemsLabel(skinItems.length)}</strong> : null}
                 </div>
               ) : (
@@ -409,7 +443,7 @@ export function AuthScreen({
                   <ul>
                     <li><strong>История покупок</strong><span>Заказы и доступные действия</span></li>
                     <li><strong>Баланс Coins</strong><span>Один баланс на всех страницах</span></li>
-                    <li><strong>Получение предметов</strong><span>Steam и статус передачи</span></li>
+                    <li><strong>Игровые предметы</strong><span>Steam-настройки и локальный статус заказа</span></li>
                   </ul>
                 </>
               )}
@@ -421,9 +455,9 @@ export function AuthScreen({
                     <span>Email {session?.emailAccount ? "подтверждён" : "не подключён"}</span>
                     <span>Steam {session?.steamAccount ? "подключён" : "не подключён"}</span>
                   </div>
-                  <button type="button" onClick={resetSession}>Выйти</button>
+                  <button type="button" disabled={isLoading} onClick={resetSession}>Выйти</button>
                 </div>
-              ) : <p className={styles.localNote}>Данные аккаунта защищены и используются для заказов Vault.</p>}
+              ) : <p className={styles.localNote}>Локальные аккаунты изолированы друг от друга и хранятся только в этом браузере.</p>}
             </aside>
           </div>
         )}

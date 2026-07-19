@@ -39,12 +39,12 @@ test("условия получения согласованы со способ
   const gpt = catalogProducts.find((product) => product.id === "gpt-plus");
 
   assert.ok(skin && steam && gpt);
-  assert.equal(skin.details.fulfillment.title, "Передача через Steam");
+  assert.equal(skin.details.fulfillment.title, "Данные Steam Trade");
   assert.ok(skin.details.fulfillment.requirements.some((item) => item.includes("Trade URL")));
-  assert.equal(steam.details.fulfillment.title, "Автоматическое пополнение");
+  assert.equal(steam.details.fulfillment.title, "Данные пополнения Steam");
   assert.ok(steam.details.fulfillment.requirements.some((item) => item.includes("Steam")));
-  assert.equal(gpt.details.fulfillment.title, "Ручная обработка");
-  assert.ok(gpt.details.fulfillment.requirements.some((item) => item.includes("аккаунта")));
+  assert.equal(gpt.details.fulfillment.title, "Данные цифрового заказа");
+  assert.ok(gpt.details.fulfillment.requirements.some((item) => item.includes("Email")));
 });
 
 test("товар находится по точному slug", () => {

@@ -43,6 +43,8 @@ export function FAQAccordion() {
                   className={`${styles.faqTab} ${isActive ? styles.activeFaqTab : ""}`}
                   onClick={() => setActiveGroup(group)}
                   onKeyDown={(event) => {
+                    if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) return;
+                    event.preventDefault();
                     if (event.key === "ArrowRight") selectTab(activeIndex + 1);
                     if (event.key === "ArrowLeft") selectTab(activeIndex - 1);
                     if (event.key === "Home") selectTab(0);

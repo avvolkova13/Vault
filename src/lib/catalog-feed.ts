@@ -5,9 +5,10 @@ export type CatalogFeedEntry<T> = {
   item: T;
 };
 
-export function getNextCatalogFeedSize(currentSize: number) {
+export function getNextCatalogFeedSize(currentSize: number, totalSize = Number.POSITIVE_INFINITY) {
   const safeSize = Number.isFinite(currentSize) ? Math.max(0, Math.floor(currentSize)) : 0;
-  return safeSize + CATALOG_FEED_BATCH_SIZE;
+  const nextSize = safeSize + CATALOG_FEED_BATCH_SIZE;
+  return Number.isFinite(totalSize) ? Math.min(Math.max(0, Math.floor(totalSize)), nextSize) : nextSize;
 }
 
 export function createCatalogFeedEntries<T extends { id: string }>(
@@ -18,12 +19,10 @@ export function createCatalogFeedEntries<T extends { id: string }>(
 
   if (!items.length || safeSize === 0) return [];
 
-  return Array.from({ length: safeSize }, (_, index) => {
-    const item = items[index % items.length];
-    const occurrence = Math.floor(index / items.length);
+  return items.slice(0, safeSize).map((item) => {
 
     return {
-      key: `${item.id}-${occurrence}`,
+      key: item.id,
       item,
     };
   });

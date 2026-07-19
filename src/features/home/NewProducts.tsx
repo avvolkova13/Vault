@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 
 import { useMarketplace } from "@/components/marketplace/MarketplaceProvider";
 import { Button, Container, Section, SectionHeading, StatusBadge } from "@/components/ui/UI";
@@ -22,16 +23,16 @@ export function NewProducts({ products }: { products: Product[] }) {
             const selected = cart.some((item) => item.id === product.id);
             return (
               <article key={product.id} className={styles.newItem}>
-                <div className={styles.newThumb}>
+                <Link className={styles.newThumb} href={`/catalog/${product.slug}`} aria-hidden="true" tabIndex={-1}>
                   {product.image ? (
                     <Image src={product.image} alt={product.imageAlt ?? product.title} fill sizes="92px" />
                   ) : (
                     <span>{getProductVisualLabel(product)}</span>
                   )}
-                </div>
+                </Link>
                 <div className={styles.newCopy}>
                   <span>{product.category}</span>
-                  <h3>{product.title}</h3>
+                  <h3><Link href={`/catalog/${product.slug}`}>{product.title}</Link></h3>
                   <p>{product.description}</p>
                 </div>
                 <div className={styles.newStatus}>
@@ -44,9 +45,9 @@ export function NewProducts({ products }: { products: Product[] }) {
                   type="button"
                   tone={selected ? "secondary" : "primary"}
                   disabled={selected}
-                  onClick={() => addToCart({ id: product.id, title: product.title })}
+                  onClick={() => { void addToCart({ id: product.id, title: product.title }); }}
                 >
-                  {selected ? "Добавлено" : "Купить"}
+                  {selected ? "Добавлено" : "В корзину"}
                 </Button>
               </article>
             );

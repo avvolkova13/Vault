@@ -5,11 +5,20 @@ import {
   TOP_UP_MAX_COINS,
   TOP_UP_MIN_COINS,
   getSuggestedTopUpCoins,
+  createTopUpAuthReturnPath,
   getTopUpQuote,
   normalizeTopUpQueryValue,
   sanitizeTopUpReturnPath,
   validateTopUpAmount,
 } from "./top-up.ts";
+
+test("вход из калькулятора сохраняет корзину и требуемую сумму", () => {
+  assert.equal(
+    createTopUpAuthReturnPath("/cart", 2840),
+    "/balance/top-up?returnTo=%2Fcart&requiredCoins=2840",
+  );
+  assert.equal(createTopUpAuthReturnPath(null, 2840), "/balance/top-up");
+});
 
 test("сумма пополнения ограничена целым количеством Coins в допустимом диапазоне", () => {
   assert.equal(validateTopUpAmount(""), "Укажите сумму пополнения.");

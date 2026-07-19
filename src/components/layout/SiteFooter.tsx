@@ -26,22 +26,22 @@ export function SiteFooter() {
           <Link href="/#new-products">Новинки</Link>
         </div>
         <div className={styles.footerColumn}>
-          <h2>Support</h2>
+          <h2>Поддержка</h2>
           <Link href="/account/support">Поддержка</Link>
           <Link href="/#faq">FAQ</Link>
           <a href={`mailto:${siteConfig.support.email}`}>{siteConfig.support.email}</a>
-          <p>{siteConfig.support.hours}</p>
+          <span>{siteConfig.support.hours}</span>
         </div>
         <div className={styles.footerColumn}>
           <h2>Оплата и получение</h2>
-          <div className={styles.paymentMethods} aria-label="Доступные способы оплаты">
+          <div className={styles.paymentMethods} aria-label="Платёжные системы">
             {siteConfig.paymentMethods.map((method) => (
               <span className={styles.paymentLogo} key={method.name} title={method.name}>
                 <Image src={method.src} alt={method.name} width={38} height={22} />
               </span>
             ))}
           </div>
-          <p>Оплата заказа проходит в Coins по фиксированному курсу Vault.</p>
+          <p>Проведение оплаты пока не подключено. Цены каталога указаны в Coins.</p>
         </div>
         <div className={styles.footerColumn}>
           <h2>Реквизиты</h2>

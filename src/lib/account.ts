@@ -1,5 +1,6 @@
 import type { Product } from "../types/commerce";
-import type { CoinTransaction, InventoryItem, MarketplaceOrder, OrderItemSnapshot, OrderStatus } from "../types/account";
+import type { CoinTransaction, InventoryItem, MarketplaceOrder, OrderItemSnapshot, OrderStatus, TradeEvent } from "../types/account";
+import type { FulfillmentInput } from "./fulfillment.ts";
 
 type RecordOptions = {
   id?: string;
@@ -7,7 +8,11 @@ type RecordOptions = {
   number?: string;
   createdAt?: string;
   status?: OrderStatus;
+  fulfillment?: FulfillmentInput;
+  steamTradeUrl?: string;
 };
+
+type OrderRecipient = NonNullable<MarketplaceOrder["recipient"]>;
 
 let recordSequence = 0;
 
@@ -27,13 +32,13 @@ function isIsoDate(value: unknown): value is string {
 function isOrderItem(value: unknown): value is OrderItemSnapshot {
   if (!isRecord(value)) return false;
   return (
-    typeof value.id === "string" &&
-    typeof value.productId === "string" &&
-    typeof value.slug === "string" &&
-    typeof value.title === "string" &&
+    typeof value.id === "string" && value.id.trim().length > 0 &&
+    typeof value.productId === "string" && value.productId.trim().length > 0 &&
+    typeof value.slug === "string" && value.slug.trim().length > 0 &&
+    typeof value.title === "string" && value.title.trim().length > 0 &&
     (value.kind === "skins" || value.kind === "steam" || value.kind === "gpt") &&
     typeof value.priceCoins === "number" &&
-    Number.isFinite(value.priceCoins) &&
+    Number.isSafeInteger(value.priceCoins) &&
     value.priceCoins >= 0 &&
     (value.fulfillmentMode === "automatic" || value.fulfillmentMode === "steam-trade" || value.fulfillmentMode === "manual") &&
     (value.deliveryStatus === "delivered" || value.deliveryStatus === "inventory-ready" || value.deliveryStatus === "pending") &&
@@ -45,42 +50,69 @@ function isOrderItem(value: unknown): value is OrderItemSnapshot {
 function isMarketplaceOrder(value: unknown): value is MarketplaceOrder {
   if (!isRecord(value)) return false;
   return (
-    typeof value.id === "string" &&
-    typeof value.number === "string" &&
+    typeof value.id === "string" && value.id.trim().length > 0 &&
+    typeof value.number === "string" && value.number.trim().length > 0 &&
     isIsoDate(value.createdAt) &&
     Array.isArray(value.items) &&
     value.items.length > 0 &&
     value.items.every(isOrderItem) &&
     typeof value.totalCoins === "number" &&
-    Number.isFinite(value.totalCoins) &&
+    Number.isSafeInteger(value.totalCoins) &&
     value.totalCoins >= 0 &&
     (value.status === "completed" || value.status === "processing" || value.status === "cancelled") &&
-    typeof value.isDemo === "boolean"
+    typeof value.isDemo === "boolean" &&
+    (value.recipient === undefined || (
+      isRecord(value.recipient) &&
+      (value.recipient.steamLogin === undefined || typeof value.recipient.steamLogin === "string") &&
+      (value.recipient.gptEmail === undefined || typeof value.recipient.gptEmail === "string") &&
+      (value.recipient.steamTradeUrl === undefined || typeof value.recipient.steamTradeUrl === "string")
+    ))
   );
 }
 
 function isCoinTransaction(value: unknown): value is CoinTransaction {
   if (!isRecord(value)) return false;
   return (
-    typeof value.id === "string" &&
+    typeof value.id === "string" && value.id.trim().length > 0 &&
     isIsoDate(value.createdAt) &&
     (value.direction === "credit" || value.direction === "debit") &&
-    (value.reason === "top-up" || value.reason === "purchase") &&
+    (value.reason === "top-up" || value.reason === "purchase" || value.reason === "sale") &&
     typeof value.amountCoins === "number" &&
-    Number.isFinite(value.amountCoins) &&
+    Number.isSafeInteger(value.amountCoins) &&
     value.amountCoins > 0 &&
     typeof value.balanceAfterCoins === "number" &&
-    Number.isFinite(value.balanceAfterCoins) &&
+    Number.isSafeInteger(value.balanceAfterCoins) &&
     value.balanceAfterCoins >= 0 &&
     (value.status === "completed" || value.status === "failed") &&
     (value.orderNumber === undefined || typeof value.orderNumber === "string") &&
-    typeof value.description === "string" &&
+    typeof value.description === "string" && value.description.trim().length > 0 &&
     typeof value.isDemo === "boolean"
   );
 }
 
+export function getRelevantOrderRecipient(
+  items: Array<Pick<OrderItemSnapshot, "kind">>,
+  recipient?: OrderRecipient,
+): OrderRecipient | undefined {
+  if (!recipient) return undefined;
+  const hasSteamTopUp = items.some((item) => item.kind === "steam");
+  const hasSkin = items.some((item) => item.kind === "skins");
+  const hasGpt = items.some((item) => item.kind === "gpt");
+  const normalized: OrderRecipient = {
+    ...(hasSteamTopUp && recipient.steamLogin?.trim() ? { steamLogin: recipient.steamLogin.trim() } : {}),
+    ...(hasGpt && recipient.gptEmail?.trim() ? { gptEmail: recipient.gptEmail.trim().toLocaleLowerCase("ru-RU") } : {}),
+    ...(hasSkin && normalizeSteamTradeUrl(recipient.steamTradeUrl)
+      ? { steamTradeUrl: normalizeSteamTradeUrl(recipient.steamTradeUrl) }
+      : {}),
+  };
+  return Object.keys(normalized).length ? normalized : undefined;
+}
+
 export function createCheckoutRecords(products: Product[], balanceAfterCoins: number, options: RecordOptions = {}): { order: MarketplaceOrder; transaction: CoinTransaction } {
   if (!products.length) throw new Error("Checkout requires at least one product.");
+  if (!Number.isSafeInteger(balanceAfterCoins) || balanceAfterCoins < 0 || products.some((product) => !Number.isSafeInteger(product.priceCoins) || product.priceCoins < 0)) {
+    throw new Error("Checkout Coin values must be non-negative safe integers.");
+  }
   const createdAt = options.createdAt ?? new Date().toISOString();
   const status = options.status ?? "processing";
   const id = options.id ?? createRecordId("order", createdAt);
@@ -101,6 +133,11 @@ export function createCheckoutRecords(products: Product[], balanceAfterCoins: nu
     imageAlt: product.imageAlt,
   }));
   const totalCoins = items.reduce((total, item) => total + item.priceCoins, 0);
+  const recipient = getRelevantOrderRecipient(items, {
+    steamLogin: options.fulfillment?.steamLogin,
+    gptEmail: options.fulfillment?.gptEmail,
+    steamTradeUrl: options.steamTradeUrl,
+  });
   const order: MarketplaceOrder = {
     id,
     number,
@@ -109,6 +146,7 @@ export function createCheckoutRecords(products: Product[], balanceAfterCoins: nu
     totalCoins,
     status,
     isDemo: true,
+    ...(recipient ? { recipient } : {}),
   };
   const transaction: CoinTransaction = {
     id: options.transactionId ?? createRecordId("transaction", createdAt),
@@ -116,7 +154,7 @@ export function createCheckoutRecords(products: Product[], balanceAfterCoins: nu
     direction: "debit",
     reason: "purchase",
     amountCoins: totalCoins,
-    balanceAfterCoins: Math.max(0, Math.floor(balanceAfterCoins)),
+    balanceAfterCoins,
     status: "completed",
     orderNumber: number,
     description: `Покупка: ${items.map((item) => item.title).join(", ")}`,
@@ -126,8 +164,7 @@ export function createCheckoutRecords(products: Product[], balanceAfterCoins: nu
 }
 
 export function createTopUpTransaction(amountCoins: number, balanceAfterCoins: number, options: Pick<RecordOptions, "id" | "createdAt"> = {}): CoinTransaction {
-  const safeAmount = Math.floor(amountCoins);
-  if (!Number.isFinite(safeAmount) || safeAmount <= 0) {
+  if (!Number.isSafeInteger(amountCoins) || amountCoins <= 0 || !Number.isSafeInteger(balanceAfterCoins) || balanceAfterCoins < 0) {
     throw new Error("Top-up amount must be positive.");
   }
   const createdAt = options.createdAt ?? new Date().toISOString();
@@ -136,8 +173,8 @@ export function createTopUpTransaction(amountCoins: number, balanceAfterCoins: n
     createdAt,
     direction: "credit",
     reason: "top-up",
-    amountCoins: safeAmount,
-    balanceAfterCoins: Math.max(0, Math.floor(balanceAfterCoins)),
+    amountCoins,
+    balanceAfterCoins,
     status: "completed",
     description: "Пополнение баланса Coins",
     isDemo: true,
@@ -145,7 +182,14 @@ export function createTopUpTransaction(amountCoins: number, balanceAfterCoins: n
 }
 
 export function normalizeOrders(value: unknown): MarketplaceOrder[] {
-  return Array.isArray(value) ? value.filter(isMarketplaceOrder) : [];
+  return Array.isArray(value) ? value.filter(isMarketplaceOrder).map((order) => {
+    const items = order.items.map((item) => ({ ...item }));
+    const recipient = getRelevantOrderRecipient(items, order.recipient);
+    const normalizedOrder = { ...order, items };
+    delete normalizedOrder.recipient;
+    if (recipient) normalizedOrder.recipient = recipient;
+    return normalizedOrder;
+  }) : [];
 }
 
 export function normalizeTransactions(value: unknown): CoinTransaction[] {
@@ -156,11 +200,28 @@ export function sortOrdersNewestFirst(orders: MarketplaceOrder[]) {
   return [...orders].sort((first, second) => Date.parse(second.createdAt) - Date.parse(first.createdAt));
 }
 
-export function getInventoryItems(orders: MarketplaceOrder[]): InventoryItem[] {
+export function sortTransactionsNewestFirst(transactions: CoinTransaction[]) {
+  return [...transactions].sort((first, second) => Date.parse(second.createdAt) - Date.parse(first.createdAt));
+}
+
+export function getOverviewTransactions(transactions: CoinTransaction[], limit = 3) {
+  return sortTransactionsNewestFirst(transactions).slice(0, Math.max(0, limit)).map((transaction) => ({
+    transaction,
+    direction: transaction.status === "failed"
+      ? "neutral" as const
+      : transaction.direction,
+    amountLabel: transaction.status === "failed"
+      ? "Баланс не изменён"
+      : `${transaction.direction === "credit" ? "+" : "−"}${transaction.amountCoins.toLocaleString("ru-RU")} Coins`,
+  }));
+}
+
+export function getInventoryItems(orders: MarketplaceOrder[], tradeEvents: TradeEvent[] = []): InventoryItem[] {
+  const disposedItemIds = new Set(tradeEvents.filter((event) => event.direction === "sale" || event.direction === "withdrawal").map((event) => event.itemId).filter((id): id is string => Boolean(id)));
   return sortOrdersNewestFirst(orders).flatMap((order) =>
     order.status === "completed"
       ? order.items
-          .filter((item) => item.kind === "skins" && item.deliveryStatus === "inventory-ready")
+          .filter((item) => item.kind === "skins" && item.deliveryStatus === "inventory-ready" && !disposedItemIds.has(item.id))
           .map((item) => ({
             ...item,
             orderId: order.id,
@@ -173,6 +234,21 @@ export function getInventoryItems(orders: MarketplaceOrder[]): InventoryItem[] {
 
 export function getInventoryPreviewItems(orders: MarketplaceOrder[]): OrderItemSnapshot[] {
   return getInventoryItems(orders);
+}
+
+export function getTransactionStatusLabel(transaction: Pick<CoinTransaction, "status" | "direction">) {
+  if (transaction.status === "failed") return "Не выполнено";
+  return transaction.direction === "credit" ? "Зачислено" : "Списано";
+}
+
+export function getOrderItemDeliveryStatusLabel(status: OrderItemSnapshot["deliveryStatus"]) {
+  if (status === "delivered") return "Отмечено выполненным в локальной истории";
+  if (status === "inventory-ready") return "Сохранено в локальном инвентаре";
+  return "Внешняя выдача не подключена";
+}
+
+export function getTradeStatusLabel(status: TradeEvent["status"]) {
+  return status === "completed" ? "Локальная запись завершена" : "Внешний трейд не запущен";
 }
 
 export function validateSteamTradeUrl(value: string) {

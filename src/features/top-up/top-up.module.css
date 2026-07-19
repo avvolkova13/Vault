@@ -122,7 +122,7 @@
 }
 
 .presets button {
-  min-height: 43px;
+  min-height: 44px;
   border: 1px solid var(--border-strong);
   border-radius: 7px;
   background: #0e1218;
@@ -165,6 +165,16 @@
 
 .amountControl:focus-within {
   border-color: var(--accent-hover);
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 2px;
+}
+
+.presets button:focus-visible,
+.primaryLink:focus-visible,
+.errorState button:focus-visible,
+.errorState a:focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 2px;
 }
 
 .amountControl input {
@@ -287,7 +297,7 @@
 
 .summaryCard {
   position: sticky;
-  top: 121px;
+  top: var(--sticky-header-offset);
   padding: 24px;
 }
 

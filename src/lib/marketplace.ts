@@ -6,6 +6,7 @@ export type SearchableProduct = {
   title: string;
   description: string;
   kind: ProductKind;
+  game?: string;
   keywords?: string[];
 };
 
@@ -36,6 +37,12 @@ export function searchProducts<T extends SearchableProduct>(products: T[], query
     return products;
   }
 
+  const exactGame = ["cs2", "dota 2", "rust"].find((game) => game === normalizedQuery);
+  if (exactGame) {
+    return products.filter((product) => normalize(product.game ?? "") === exactGame);
+  }
+
+  const queryTerms = normalizedQuery.split(/\s+/).filter(Boolean);
   return products.filter((product) => {
     const haystack = [
       product.title,
@@ -48,8 +55,23 @@ export function searchProducts<T extends SearchableProduct>(products: T[], query
       .map(normalize)
       .join(" ");
 
-    return haystack.includes(normalizedQuery);
+    return queryTerms.every((term) => {
+      if (term === "steam") return product.kind === "steam";
+      if (term === "gpt") return product.kind === "gpt";
+      return haystack.includes(term);
+    });
   });
+}
+
+export function normalizeCalculatorAmount(value: string) {
+  const normalized = value.trim();
+  if (!/^\d+$/.test(normalized)) return 0;
+  const amount = Number(normalized);
+  return Number.isSafeInteger(amount) ? amount : 0;
+}
+
+export function formatCoinRate(rate: number) {
+  return `1 ₽ = ${rate.toLocaleString("ru-RU")} Coins`;
 }
 
 export function filterProducts<T extends SearchableProduct>(

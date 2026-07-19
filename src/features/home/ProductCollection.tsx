@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import { ProductCard } from "@/components/marketplace/ProductCard";
 import { Icon } from "@/components/ui/Icon";
 import { Container, Section, SectionHeading } from "@/components/ui/UI";
-import { createPopularGridEntries } from "@/lib/home-merchandising";
+import { createPopularGridEntries, getMerchandisingCopy, orderMerchandisingProducts } from "@/lib/home-merchandising";
 import type { ProductFilter } from "@/lib/marketplace";
 import type { Product } from "@/types/commerce";
 
@@ -25,22 +25,17 @@ export function ProductCollection({ products }: { products: Product[] }) {
   const [filter, setFilter] = useState<ProductFilter>("all");
   const [merchandising, setMerchandising] = useState<MerchandisingFilter>("popular");
   const merchandisedProducts = useMemo(() => {
-    if (merchandising === "new") {
-      return [...products].sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
-    }
-    if (merchandising === "bestsellers") {
-      return [...products].sort((left, right) => right.popularity - left.popularity);
-    }
-    return products;
+    return orderMerchandisingProducts(products, merchandising);
   }, [merchandising, products]);
   const entries = useMemo(() => createPopularGridEntries(merchandisedProducts, filter), [filter, merchandisedProducts]);
+  const collectionCopy = getMerchandisingCopy(merchandising);
 
   return (
     <Section id="popular-products" className={styles.catalogSection}>
       <Container>
         <SectionHeading
-          title="Популярные товары"
-          description="Товары, которые чаще всего выбирают пользователи."
+          title={collectionCopy.title}
+          description={collectionCopy.description}
           action={
             <div className={styles.filterGroups}>
               <div className={styles.filterGroup} role="group" aria-label="Подборка товаров">

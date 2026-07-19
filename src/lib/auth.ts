@@ -25,7 +25,10 @@ export type AuthReturnPath =
   | "/account/inventory"
   | "/account/steam"
   | "/account/settings"
-  | "/account/support";
+  | "/account/support"
+  | "/account/steam?returnTo=%2Fcheckout"
+  | "/account/steam?returnTo=%2Fcart"
+  | `/balance/top-up?${string}`;
 export const MOCK_EMAIL_CODE = "482913";
 
 export function validateEmail(value: string) {
@@ -38,9 +41,9 @@ export function validateEmail(value: string) {
 }
 
 export function validateMockCode(value: string) {
-  if (!value.trim()) return "Введите код из письма.";
+  if (!value.trim()) return "Введите код локальной проверки.";
   if (!/^\d{6}$/.test(value.trim())) return "Код должен содержать 6 цифр.";
-  if (value.trim() !== MOCK_EMAIL_CODE) return "Неверный код. Проверьте шесть цифр из письма.";
+  if (value.trim() !== MOCK_EMAIL_CODE) return "Неверный код локальной проверки.";
   return "";
 }
 
@@ -80,10 +83,16 @@ export function isMarketplaceUser(value: unknown): value is MarketplaceUser {
   }
 
   if (user.method === "steam") {
-    return user.steamConnected && typeof user.steamId === "string";
+    return user.steamConnected
+      && typeof user.steamId === "string"
+      && user.steamId.length > 0
+      && user.id === `steam:${user.steamId}`
+      && user.email === undefined;
   }
 
-  return !user.steamConnected && typeof user.email === "string" && !validateEmail(user.email);
+  if (user.steamId !== undefined || user.steamConnected || typeof user.email !== "string" || validateEmail(user.email)) return false;
+  const normalizedEmail = user.email.trim().toLocaleLowerCase("ru-RU");
+  return user.email === normalizedEmail && user.id === `email:${normalizedEmail}`;
 }
 
 export function connectAuthAccount(
@@ -124,8 +133,38 @@ const AUTH_RETURN_PATHS: AuthReturnPath[] = [
   "/account/support",
 ];
 
+export function createAccountAuthReturnPath(pathname: string, nestedReturnTo: string | null) {
+  const accountPath = AUTH_RETURN_PATHS.includes(pathname as AuthReturnPath) && pathname.startsWith("/account")
+    ? pathname
+    : "/account";
+  return accountPath === "/account/steam" && (nestedReturnTo === "/checkout" || nestedReturnTo === "/cart")
+    ? `/account/steam?returnTo=${encodeURIComponent(nestedReturnTo)}` as AuthReturnPath
+    : accountPath;
+}
+
 export function sanitizeAuthReturnPath(value: AuthSearchValue): AuthReturnPath | null {
   const normalized = Array.isArray(value) ? value[0] : value;
   if (AUTH_RETURN_PATHS.includes(normalized as AuthReturnPath)) return normalized as AuthReturnPath;
-  return null;
+  if (normalized?.startsWith("/account/steam?")) {
+    try {
+      const accountUrl = new URL(normalized, "https://vault.local");
+      if (
+        accountUrl.origin === "https://vault.local"
+        && accountUrl.pathname === "/account/steam"
+        && (accountUrl.searchParams.get("returnTo") === "/checkout" || accountUrl.searchParams.get("returnTo") === "/cart")
+      ) return `/account/steam?returnTo=${encodeURIComponent(accountUrl.searchParams.get("returnTo")!)}` as AuthReturnPath;
+    } catch { return null; }
+  }
+  if (!normalized?.startsWith("/balance/top-up?")) return null;
+  let url: URL;
+  try { url = new URL(normalized, "https://vault.local"); } catch { return null; }
+  if (url.origin !== "https://vault.local" || url.pathname !== "/balance/top-up") return null;
+  const safe = new URLSearchParams();
+  if (url.searchParams.get("returnTo") === "/cart") safe.set("returnTo", "/cart");
+  const requiredCoins = url.searchParams.get("requiredCoins");
+  if (requiredCoins && /^\d+$/.test(requiredCoins) && Number(requiredCoins) > 0 && Number(requiredCoins) <= 100_000) {
+    safe.set("requiredCoins", requiredCoins);
+  }
+  const query = safe.toString();
+  return (query ? `/balance/top-up?${query}` : "/balance/top-up") as AuthReturnPath;
 }

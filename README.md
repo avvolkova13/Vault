@@ -1,34 +1,29 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Vault
 
-## Getting Started
+Next.js-каталог цифровых товаров: Steam, игровые предметы и GPT-сервисы. Проект использует TypeScript, App Router, CSS Modules и локальное состояние для проверки пользовательских сценариев.
 
-First, run the development server:
+## Запуск
 
 ```bash
+cd /Users/anastasiavolkova/Documents/Vault/concept-skins
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Откройте [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Проверки
 
-## Learn More
+```bash
+npm run lint
+npm run typecheck
+npm test
+npm run build
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Границы текущей реализации
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Платёжный провайдер, Steam API и почтовая доставка кода не подключены.
+- Пополнение Coins доступно как калькулятор без зачисления.
+- Вход по Email и Steam работает как явно обозначенная локальная проверка с изоляцией данных аккаунтов.
+- Заказы за Coins сохраняются локально со статусом обработки; внешняя выдача, продажа и вывод предметов отключены до подключения серверной обработки.

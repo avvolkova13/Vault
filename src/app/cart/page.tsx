@@ -7,12 +7,6 @@ export const metadata: Metadata = {
   description: "Проверьте цифровые товары и баланс Coins перед оформлением заказа.",
 };
 
-type CartPageProps = {
-  searchParams: Promise<{ topUp?: string | string[] }>;
-};
-
-export default async function CartPage({ searchParams }: CartPageProps) {
-  const params = await searchParams;
-  const topUp = Array.isArray(params.topUp) ? params.topUp[0] : params.topUp;
-  return <CartScreen showTopUpNotice={topUp === "success"} />;
+export default function CartPage() {
+  return <CartScreen />;
 }

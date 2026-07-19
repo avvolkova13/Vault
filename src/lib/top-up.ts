@@ -50,3 +50,9 @@ export function parseTopUpCoins(value: TopUpSearchValue) {
 export function sanitizeTopUpReturnPath(value: TopUpSearchValue): "/cart" | null {
   return normalizeTopUpQueryValue(value) === "/cart" ? "/cart" : null;
 }
+
+export function createTopUpAuthReturnPath(returnTo: "/cart" | null, requiredCoins: number) {
+  if (returnTo !== "/cart") return "/balance/top-up";
+  const safeCoins = getSuggestedTopUpCoins(requiredCoins);
+  return `/balance/top-up?returnTo=${encodeURIComponent("/cart")}&requiredCoins=${safeCoins}`;
+}

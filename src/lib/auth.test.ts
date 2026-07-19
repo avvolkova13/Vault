@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   connectAuthAccount,
+  createAccountAuthReturnPath,
   createMockEmailUser,
   createMockSteamUser,
   isMarketplaceSession,
@@ -19,9 +20,9 @@ test("email проходит обязательную и форматную ва
 });
 
 test("одноразовый email-код проходит обязательную и форматную проверку", () => {
-  assert.equal(validateMockCode(""), "Введите код из письма.");
+  assert.equal(validateMockCode(""), "Введите код локальной проверки.");
   assert.equal(validateMockCode("123"), "Код должен содержать 6 цифр.");
-  assert.equal(validateMockCode("123456"), "Неверный код. Проверьте шесть цифр из письма.");
+  assert.equal(validateMockCode("123456"), "Неверный код локальной проверки.");
   assert.equal(validateMockCode("482913"), "");
 });
 
@@ -67,4 +68,23 @@ test("возврат после входа разрешён только в ра
   assert.equal(sanitizeAuthReturnPath("/account/unknown"), null);
   assert.equal(sanitizeAuthReturnPath("https://example.com"), null);
   assert.equal(sanitizeAuthReturnPath("//example.com"), null);
+});
+
+test("возврат после входа безопасно сохраняет контекст калькулятора пополнения", () => {
+  assert.equal(
+    sanitizeAuthReturnPath("/balance/top-up?returnTo=%2Fcart&requiredCoins=2840"),
+    "/balance/top-up?returnTo=%2Fcart&requiredCoins=2840",
+  );
+  assert.equal(
+    sanitizeAuthReturnPath("/balance/top-up?returnTo=https%3A%2F%2Fevil.example&requiredCoins=2840"),
+    "/balance/top-up?requiredCoins=2840",
+  );
+  assert.equal(sanitizeAuthReturnPath("https://evil.example/balance/top-up?returnTo=%2Fcart"), null);
+});
+
+test("вход из Steam-настроек сохраняет возврат в checkout", () => {
+  assert.equal(createAccountAuthReturnPath("/account/steam", "/checkout"), "/account/steam?returnTo=%2Fcheckout");
+  assert.equal(sanitizeAuthReturnPath("/account/steam?returnTo=%2Fcheckout"), "/account/steam?returnTo=%2Fcheckout");
+  assert.equal(createAccountAuthReturnPath("/account/steam", "https://evil.example"), "/account/steam");
+  assert.equal(createAccountAuthReturnPath("/unknown", "/checkout"), "/account");
 });

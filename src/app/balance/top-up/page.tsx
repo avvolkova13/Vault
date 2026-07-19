@@ -10,7 +10,7 @@ import {
 
 export const metadata: Metadata = {
   title: "Пополнение баланса — Vault",
-  description: "Пополнение баланса Coins для покупок в Vault.",
+  description: "Калькулятор суммы Coins по фиксированному курсу Vault.",
 };
 
 type TopUpPageProps = {

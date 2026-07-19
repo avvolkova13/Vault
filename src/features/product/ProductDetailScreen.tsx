@@ -9,6 +9,7 @@ import { getProductVisualLabel } from "@/lib/product-visual";
 import type { Product } from "@/types/commerce";
 
 import { ProductPurchaseAction } from "./ProductPurchaseAction";
+import { CatalogReturnLink } from "./CatalogReturnLink";
 import styles from "./product.module.css";
 
 function ProductArtwork({ product }: { product: Product }) {
@@ -41,9 +42,11 @@ function ProductArtwork({ product }: { product: Product }) {
 export function ProductDetailScreen({
   product,
   relatedProducts,
+  catalogReturnHref,
 }: {
   product: Product;
   relatedProducts: Product[];
+  catalogReturnHref: string;
 }) {
   const visibleMeta = product.meta.filter((item) => !/coins|rub/i.test(item));
 
@@ -58,9 +61,10 @@ export function ProductDetailScreen({
             { label: product.title },
           ]}
         />
+        <CatalogReturnLink className={styles.catalogReturnLink} />
 
         <div className={styles.demoDisclosure} role="note">
-          <strong>Защита покупателя</strong>
+          <strong>Параметры заказа</strong>
           <span>Стоимость фиксируется в Coins до подтверждения заказа.</span>
         </div>
 
@@ -90,7 +94,7 @@ export function ProductDetailScreen({
               <section className={styles.infoSection}>
                 <div className={styles.infoHeading}>
                   <span>02</span>
-                  <div><h2>Условия получения</h2><p>Что потребуется при оформлении.</p></div>
+                  <div><h2>Данные заказа</h2><p>Что потребуется сохранить при оформлении.</p></div>
                 </div>
                 <ul className={styles.requirementList}>
                   {product.details.fulfillment.requirements.map((requirement) => (
@@ -118,7 +122,7 @@ export function ProductDetailScreen({
                 {getProductStatusLabel(product)}
               </StatusBadge>
               <div className={styles.fulfillmentFact}>
-                <small>Способ получения</small>
+                <small>Тип заказа</small>
                 <span>{product.details.fulfillment.title}</span>
               </div>
             </div>
@@ -133,7 +137,7 @@ export function ProductDetailScreen({
             <div className={styles.receiptSummary}>
               <Icon name="shield" width="19" height="19" />
               <div>
-                <strong>Как оформить получение</strong>
+                <strong>Что сохранится в заказе</strong>
                 <p>{product.details.fulfillment.description}</p>
               </div>
             </div>
@@ -152,7 +156,7 @@ export function ProductDetailScreen({
             </div>
             <div className={styles.relatedGrid}>
               {relatedProducts.map((relatedProduct) => (
-                <ProductCard key={relatedProduct.id} product={relatedProduct} compact />
+                <ProductCard key={relatedProduct.id} product={relatedProduct} compact returnHref={catalogReturnHref} />
               ))}
             </div>
           </section>

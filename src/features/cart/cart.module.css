@@ -85,7 +85,7 @@
 }
 
 .topUpSuccess button {
-  min-height: 34px;
+  min-height: 44px;
   border: 0;
   background: transparent;
   color: #b8c8f2;
@@ -224,6 +224,10 @@
   color: #bdcaff;
 }
 
+@media (max-width: 720px) {
+  .rowContent h3 a { display: inline-flex; min-height: 44px; align-items: center; }
+}
+
 .rowContent p {
   margin: 0;
   color: var(--text-secondary);
@@ -268,7 +272,7 @@
 }
 
 .removeButton {
-  min-height: 34px;
+  min-height: 44px;
   border: 0;
   background: transparent;
   padding: 0 4px;
@@ -288,7 +292,7 @@
 
 .summaryPanel {
   position: sticky;
-  top: 121px;
+  top: var(--sticky-header-offset);
   padding: 24px;
 }
 
@@ -560,6 +564,20 @@
 
   .summarySkeleton {
     min-height: 320px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .listHeading a,
+  .rowContent h3 a,
+  .removeButton,
+  .primaryLink,
+  .stateActions a,
+  .stateActions button {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
   }
 }
 

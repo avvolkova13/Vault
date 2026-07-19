@@ -27,6 +27,8 @@
 
 .searchForm:focus-within {
   border-color: var(--accent);
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 2px;
   box-shadow: 0 0 0 3px rgb(77 124 254 / 0.13);
 }
 
@@ -107,6 +109,12 @@
 .searchResults a:hover,
 .searchResults a:focus-visible {
   background: var(--surface-raised);
+}
+
+.searchResults a[aria-selected="true"] {
+  border-color: #4d7cfe;
+  background: #1a2742;
+  color: #eff4ff;
 }
 
 .resultType {
@@ -346,6 +354,10 @@
   outline-offset: 3px;
 }
 
+@media (max-width: 720px) {
+  .productTitleLink { display: inline-flex; min-height: 44px; align-items: center; }
+}
+
 .productBody p {
   display: -webkit-box;
   min-height: 2.7em;
@@ -391,7 +403,7 @@
 }
 
 .productFooter button {
-  min-height: 38px;
+  min-height: 44px;
   padding-inline: 12px;
   font-size: 0.78rem;
 }
@@ -424,7 +436,7 @@
 }
 
 .compactCard .productFooter button {
-  min-height: 34px;
+  min-height: 44px;
   padding-inline: 9px;
 }
 
@@ -446,6 +458,7 @@
 }
 
 :global(.marketplace-toast) button {
+  min-height: 44px;
   border: 0;
   background: transparent;
   color: var(--accent-hover);
@@ -455,6 +468,22 @@
 @media (max-width: 1120px) {
   .actionLabel {
     display: none;
+  }
+}
+
+@media (max-width: 1024px) {
+  .productTitleLink {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .searchResults a {
+    display: grid;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
   }
 }
 

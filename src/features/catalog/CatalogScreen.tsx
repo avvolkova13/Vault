@@ -9,6 +9,8 @@ import { catalogProducts } from "@/data/products";
 import {
   createDefaultCatalogFilters,
   filterAndSortCatalog,
+  getCatalogScrollStorageKey,
+  parseCatalogScrollPosition,
   parseCatalogSearchParams,
   serializeCatalogFilters,
   type CatalogFilters,
@@ -49,9 +51,9 @@ const weaponOptions = [...new Set(
 )];
 
 const fulfillmentOptions: { value: ProductFulfillmentMode; label: string }[] = [
-  { value: "automatic", label: "Автовыдача" },
-  { value: "steam-trade", label: "Steam Trade" },
-  { value: "manual", label: "Ручная активация" },
+  { value: "automatic", label: "Цифровой заказ" },
+  { value: "steam-trade", label: "Данные Steam Trade" },
+  { value: "manual", label: "Заказ с проверкой" },
 ];
 
 const sortOptions: { value: CatalogSort; label: string }[] = [
@@ -93,6 +95,7 @@ function FilterPanel({
   filters,
   onChange,
   onReset,
+  onApply,
   onClose,
   open,
   hasActiveFilters,
@@ -102,6 +105,7 @@ function FilterPanel({
   filters: CatalogFilters;
   onChange: (next: CatalogFilters) => void;
   onReset: () => void;
+  onApply: () => void;
   onClose: () => void;
   open: boolean;
   hasActiveFilters: boolean;
@@ -240,15 +244,18 @@ function FilterPanel({
         </div>
       </fieldset>
 
-      <Button
-        className={styles.resetButton}
-        tone="secondary"
-        type="button"
-        onClick={onReset}
-        disabled={!hasActiveFilters}
-      >
-        Сбросить фильтры
-      </Button>
+      <div className={styles.filterActions}>
+        {open ? <Button type="button" onClick={onApply}>Применить фильтры</Button> : null}
+        <Button
+          className={styles.resetButton}
+          tone="secondary"
+          type="button"
+          onClick={onReset}
+          disabled={!hasActiveFilters}
+        >
+          Сбросить фильтры
+        </Button>
+      </div>
     </aside>
   );
 }
@@ -352,6 +359,7 @@ export function CatalogScreen() {
   const closeFilterButtonRef = useRef<HTMLButtonElement>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const filters = useMemo(() => parseCatalogSearchParams(searchParams), [searchParams]);
+  const [draftFilters, setDraftFilters] = useState<CatalogFilters>(() => createDefaultCatalogFilters());
   const visibleProducts = useMemo(
     () => filterAndSortCatalog(catalogProducts, filters),
     [filters],
@@ -364,12 +372,33 @@ export function CatalogScreen() {
     () => createCatalogFeedEntries(visibleProducts, visibleCount),
     [visibleCount, visibleProducts],
   );
+  const hasMoreProducts = feedEntries.length < visibleProducts.length;
   const activeChips = useMemo(() => getActiveChips(filters), [filters]);
+  const draftChips = useMemo(() => getActiveChips(draftFilters), [draftFilters]);
+  const catalogReturnHref = filtersKey ? `${pathname}?${filtersKey}` : pathname;
+
+  useEffect(() => {
+    let savedPosition: number | null = null;
+    const storageKey = getCatalogScrollStorageKey(catalogReturnHref);
+    try {
+      savedPosition = parseCatalogScrollPosition(window.sessionStorage.getItem(storageKey));
+    } catch { /* Keep the catalog usable when session storage is blocked. */ }
+    if (savedPosition === null) return;
+
+    const restoreTask = window.setTimeout(() => {
+      setFeedState({ key: filtersKey, count: visibleProducts.length });
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: savedPosition, behavior: "auto" });
+        try { window.sessionStorage.removeItem(storageKey); } catch { /* Restoration already succeeded. */ }
+      });
+    }, 0);
+    return () => window.clearTimeout(restoreTask);
+  }, [catalogReturnHref, filtersKey, visibleProducts.length]);
 
   useEffect(() => {
     const sentinel = loadMoreRef.current;
 
-    if (!sentinel || !visibleProducts.length || typeof IntersectionObserver === "undefined") {
+    if (!sentinel || !hasMoreProducts || typeof IntersectionObserver === "undefined") {
       return;
     }
 
@@ -381,6 +410,7 @@ export function CatalogScreen() {
         key: filtersKey,
         count: getNextCatalogFeedSize(
           current.key === filtersKey ? current.count : CATALOG_FEED_BATCH_SIZE,
+          visibleProducts.length,
         ),
       }));
     }, { rootMargin: "640px 0px" });
@@ -388,7 +418,7 @@ export function CatalogScreen() {
     observer.observe(sentinel);
 
     return () => observer.disconnect();
-  }, [filtersKey, visibleCount, visibleProducts.length]);
+  }, [filtersKey, hasMoreProducts, visibleCount, visibleProducts.length]);
 
   useEffect(() => {
     if (!filtersOpen) return;
@@ -445,6 +475,24 @@ export function CatalogScreen() {
     updateFilters(createDefaultCatalogFilters());
   }
 
+  function openFilters() {
+    setDraftFilters(filters);
+    setFiltersOpen(true);
+  }
+
+  function resetVisibleFilters() {
+    if (filtersOpen) {
+      setDraftFilters(createDefaultCatalogFilters());
+      return;
+    }
+    resetFilters();
+  }
+
+  function applyFilters() {
+    updateFilters(draftFilters);
+    closeFilters();
+  }
+
   function closeFilters() {
     setFiltersOpen(false);
     requestAnimationFrame(() => filterTriggerRef.current?.focus());
@@ -483,7 +531,7 @@ export function CatalogScreen() {
         <div className={styles.toolbar}>
           <div className={styles.resultSummary}>
             <strong>{filters.query ? `Результаты по запросу «${filters.query}»` : "Все товары"}</strong>
-            <span className={styles.demoNote}>Мгновенная выдача и Steam Trade</span>
+            <span className={styles.demoNote}>Тип оформления указан в каждой карточке</span>
             <span className={styles.srOnly} aria-live="polite">
               Найдено товаров: {visibleProducts.length}
             </span>
@@ -495,7 +543,7 @@ export function CatalogScreen() {
               type="button"
               aria-expanded={filtersOpen}
               aria-controls="catalog-filters"
-              onClick={() => setFiltersOpen(true)}
+              onClick={openFilters}
             >
               Фильтры
               {activeChips.length ? <span>{activeChips.length}</span> : null}
@@ -544,12 +592,13 @@ export function CatalogScreen() {
             onClick={closeFilters}
           />
           <FilterPanel
-            filters={filters}
-            onChange={updateFilters}
-            onReset={resetFilters}
+            filters={filtersOpen ? draftFilters : filters}
+            onChange={filtersOpen ? setDraftFilters : updateFilters}
+            onReset={resetVisibleFilters}
+            onApply={applyFilters}
             onClose={closeFilters}
             open={filtersOpen}
-            hasActiveFilters={activeChips.length > 0}
+            hasActiveFilters={(filtersOpen ? draftChips : activeChips).length > 0}
             dialogRef={filterDialogRef}
             closeButtonRef={closeFilterButtonRef}
           />
@@ -564,22 +613,22 @@ export function CatalogScreen() {
                       product={product}
                       priority={index < 4}
                       headingLevel={2}
+                      returnHref={catalogReturnHref}
                     />
                   ))}
                 </div>
-                <div ref={loadMoreRef} className={styles.loadMore} aria-live="polite">
+                <div ref={loadMoreRef} className={`${styles.loadMore} ${hasMoreProducts ? "" : styles.loadMoreEnd}`} aria-live="polite">
                   <span>Показано карточек: {feedEntries.length}</span>
-                  <button
+                  {hasMoreProducts ? <button
                     type="button"
                     onClick={() => setFeedState((current) => ({
                       key: filtersKey,
                       count: getNextCatalogFeedSize(
                         current.key === filtersKey ? current.count : CATALOG_FEED_BATCH_SIZE,
+                        visibleProducts.length,
                       ),
                     }))}
-                  >
-                    Показать ещё
-                  </button>
+                  >Показать ещё</button> : <strong>Вы посмотрели все товары в этой подборке</strong>}
                 </div>
               </>
             ) : (

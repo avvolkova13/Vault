@@ -5,6 +5,10 @@ import { catalogProducts } from "../data/products.ts";
 import {
   createCheckoutRecords,
   createTopUpTransaction,
+  getOrderItemDeliveryStatusLabel,
+  getOverviewTransactions,
+  getTradeStatusLabel,
+  getTransactionStatusLabel,
   getInventoryItems,
   getInventoryPreviewItems,
   normalizeOrders,
@@ -136,9 +140,85 @@ test("Steam Trade URL принимает только официальный tra
   assert.match(validateSteamTradeUrl("https://steamcommunity.com/id/user"), /формат/);
 });
 
+test("failed Coins operations are labelled as failed rather than credited or debited", () => {
+  assert.equal(getTransactionStatusLabel({ status: "failed", direction: "credit" }), "Не выполнено");
+  assert.equal(getTransactionStatusLabel({ status: "failed", direction: "debit" }), "Не выполнено");
+  assert.equal(getTransactionStatusLabel({ status: "completed", direction: "credit" }), "Зачислено");
+  assert.equal(getTransactionStatusLabel({ status: "completed", direction: "debit" }), "Списано");
+});
+
+test("overview operations are newest-first and failed rows state that balance did not change", () => {
+  const older = createTopUpTransaction(500, 500, { id: "older-operation", createdAt: "2026-07-10T08:00:00.000Z" });
+  const failed = {
+    ...createTopUpTransaction(900, 500, { id: "failed-operation", createdAt: "2026-07-17T08:00:00.000Z" }),
+    status: "failed" as const,
+  };
+  const overview = getOverviewTransactions([older, failed]);
+
+  assert.deepEqual(overview.map((item) => item.transaction.id), ["failed-operation", "older-operation"]);
+  assert.equal(overview[0].amountLabel, "Баланс не изменён");
+  assert.equal(overview[0].direction, "neutral");
+  assert.equal(overview[1].amountLabel, "+500 Coins");
+});
+
+test("order and trade statuses describe local records without promising external fulfillment", () => {
+  assert.equal(getOrderItemDeliveryStatusLabel("delivered"), "Отмечено выполненным в локальной истории");
+  assert.equal(getOrderItemDeliveryStatusLabel("inventory-ready"), "Сохранено в локальном инвентаре");
+  assert.equal(getOrderItemDeliveryStatusLabel("pending"), "Внешняя выдача не подключена");
+  assert.equal(getTradeStatusLabel("completed"), "Локальная запись завершена");
+  assert.equal(getTradeStatusLabel("processing"), "Внешний трейд не запущен");
+  assert.equal(getTradeStatusLabel("pending"), "Внешний трейд не запущен");
+});
+
 test("повреждённый Trade URL из localStorage сбрасывается", () => {
   const valid = "https://steamcommunity.com/tradeoffer/new/?partner=123456789&token=AbC_12-x";
   assert.equal(normalizeSteamTradeUrl(valid), valid);
   assert.equal(normalizeSteamTradeUrl("https://example.com/tradeoffer/new/?partner=1&token=abcdef"), "");
   assert.equal(normalizeSteamTradeUrl(42), "");
+});
+
+test("checkout snapshots normalized Steam Trade URL into an immutable order recipient", () => {
+  const tradeUrl = "https://steamcommunity.com/tradeoffer/new/?partner=123456789&token=AbC_12-x";
+  const records = createCheckoutRecords([getCatalogProduct("ak-redline")], 4_000, {
+    id: "trade-url-order",
+    createdAt: "2026-07-17T08:00:00.000Z",
+    fulfillment: { steamLogin: " VaultPlayer ", gptEmail: "" },
+    steamTradeUrl: `  ${tradeUrl}  `,
+  });
+
+  assert.equal(records.order.recipient?.steamTradeUrl, tradeUrl);
+  const normalized = normalizeOrders([records.order]);
+  assert.equal(normalized[0]?.recipient?.steamTradeUrl, tradeUrl);
+});
+
+test("order recipient snapshots only fields required by its product kinds and preserves mixed carts", () => {
+  const tradeUrl = "https://steamcommunity.com/tradeoffer/new/?partner=123456789&token=AbC_12-x";
+  const fulfillment = { steamLogin: "VaultPlayer", gptEmail: "linked-audit@example.com" };
+  const create = (productIds: string[]) => createCheckoutRecords(
+    productIds.map(getCatalogProduct),
+    10_000,
+    { fulfillment, steamTradeUrl: tradeUrl },
+  ).order;
+
+  const skinOnly = create(["ak-redline"]);
+  assert.deepEqual(skinOnly.recipient, { steamTradeUrl: tradeUrl });
+
+  const steamOnly = create(["steam-top-up-500"]);
+  assert.deepEqual(steamOnly.recipient, { steamLogin: "VaultPlayer" });
+
+  const gptOnly = create(["gpt-plus"]);
+  assert.deepEqual(gptOnly.recipient, { gptEmail: "linked-audit@example.com" });
+
+  const mixed = create(["ak-redline", "steam-top-up-500", "gpt-plus"]);
+  assert.deepEqual(mixed.recipient, {
+    steamLogin: "VaultPlayer",
+    gptEmail: "linked-audit@example.com",
+    steamTradeUrl: tradeUrl,
+  });
+
+  const [normalizedLegacy] = normalizeOrders([{
+    ...skinOnly,
+    recipient: { steamLogin: "wrong", gptEmail: "wrong@example.com", steamTradeUrl: tradeUrl },
+  }]);
+  assert.deepEqual(normalizedLegacy.recipient, { steamTradeUrl: tradeUrl });
 });

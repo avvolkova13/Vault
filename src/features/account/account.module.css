@@ -77,7 +77,7 @@
 
 .sidebar {
   position: sticky;
-  top: 121px;
+  top: var(--sticky-header-offset);
   overflow: hidden;
 }
 
@@ -425,7 +425,7 @@
 
 .detailsButton,
 .orderNumberList button {
-  min-height: 34px;
+  min-height: 44px;
   border: 1px solid var(--border-strong);
   border-radius: 7px;
   background: #111720;
@@ -475,6 +475,25 @@
   color: var(--text-secondary);
   font-size: 0.71rem;
 }
+
+.orderDetailFacts {
+  display: grid;
+  gap: 7px;
+  margin: 12px 0;
+}
+
+.breakableValue {
+  overflow-wrap: anywhere;
+}
+
+.orderDetailFacts div {
+  display: grid;
+  grid-template-columns: minmax(120px, .7fr) minmax(0, 1.3fr);
+  gap: 12px;
+}
+
+.orderDetailFacts dt { color: var(--text-secondary); }
+.orderDetailFacts dd { margin: 0; color: var(--text); }
 
 .inlineOrderDetails > div {
   display: flex;
@@ -864,6 +883,37 @@
   border-color: var(--accent-hover);
 }
 
+.tradeForm input:focus-visible,
+.connectionList a:focus-visible,
+.tradeActions a:focus-visible,
+.tradeActions button:focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 2px;
+}
+
+@media (max-width: 1024px) {
+  .sidebar a,
+  .sidebar button,
+  .balanceHero a,
+  .accountReadiness a,
+  .overviewStrip a,
+  .overviewStrip button,
+  .connectionList a,
+  .sidebarBalance a,
+  .inlineOrderDetails a,
+  .tradeActions a,
+  .tradeActions button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .sidebarBalance a,
+  .inlineOrderDetails a {
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
 .tradeForm input:disabled {
   opacity: 0.55;
   cursor: not-allowed;
@@ -969,6 +1019,11 @@
 }
 
 .connectionList a {
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
   color: #afc0f2;
   font-size: 0.72rem;
   font-weight: 700;
@@ -1171,6 +1226,23 @@
   }
 }
 
+@media (max-width: 1024px) {
+  .sectionHeading a,
+  .orderItems a,
+  .balanceHero a,
+  .accountReadiness a,
+  .overviewStrip a,
+  .connectionList a,
+  .tradeActions a,
+  .primaryLink {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
 @media (max-width: 720px) {
   .page {
     padding-top: 18px;
@@ -1353,4 +1425,11 @@
   .supportCategories {
     grid-template-columns: 1fr;
   }
+}
+
+@media (max-width: 900px) {
+  .sectionHeading a,
+  .orderItems a,
+  .connectionList a,
+  .tradeActions a { display: inline-flex; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; }
 }

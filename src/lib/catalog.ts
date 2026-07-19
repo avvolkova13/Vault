@@ -4,6 +4,7 @@ import type {
   ProductFulfillmentMode,
 } from "../types/commerce.ts";
 import type { ProductFilter } from "./marketplace.ts";
+import { searchProducts } from "./marketplace.ts";
 
 export type CatalogSort =
   | "relevance"
@@ -113,6 +114,15 @@ export function serializeCatalogFilters(filters: CatalogFilters) {
   return searchParams;
 }
 
+export function createCanonicalCatalogReturnPath(pathname: string, currentSearch: string, query: string) {
+  const searchParams = new URLSearchParams(currentSearch);
+  const normalizedQuery = query.trim();
+  if (normalizedQuery) searchParams.set("q", normalizedQuery);
+  else searchParams.delete("q");
+  const canonical = serializeCatalogFilters(parseCatalogSearchParams(searchParams)).toString();
+  return canonical ? `${pathname}?${canonical}` : pathname;
+}
+
 function normalize(value: string) {
   return value.trim().toLocaleLowerCase("ru-RU");
 }
@@ -185,19 +195,14 @@ export function filterAndSortCatalog(
   filters: CatalogFilters,
 ) {
   const normalizedQuery = normalize(filters.query);
-  const queryTerms = normalizedQuery.split(/\s+/).filter(Boolean);
+  const searchMatches = new Set(searchProducts(products, normalizedQuery).map((product) => product.id));
   const { minPrice, maxPrice } = normalizePriceBounds(
     filters.minPrice,
     filters.maxPrice,
   );
 
   const filtered = products.filter((product) => {
-    const text = searchableText(product);
-    const matchesQuery = queryTerms.every((term) => {
-      if (term === "steam") return product.kind === "steam";
-      if (term === "gpt") return product.kind === "gpt";
-      return text.includes(term);
-    });
+    const matchesQuery = searchMatches.has(product.id);
     const matchesCategory = filters.category === "all"
       || product.kind === filters.category;
     const matchesStatus = filters.statuses.length === 0
@@ -241,14 +246,41 @@ export function filterAndSortCatalog(
   });
 }
 
+export function searchCatalogProducts(products: Product[], query: string, limit = Number.POSITIVE_INFINITY) {
+  const safeLimit = Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : products.length;
+  return searchProducts(products, query).slice(0, safeLimit);
+}
+
 export function getProductStatusLabel(product: Product) {
   if (product.availability === "on-request") {
-    return "Под заказ";
+    return "Локальный заказ";
   }
 
-  if (product.fulfillmentMode === "automatic") {
-    return "Автовыдача";
-  }
+  return "Доступен к оформлению";
+}
 
-  return "В наличии";
+export function sanitizeCatalogReturnPath(value: string | null | undefined) {
+  if (!value) return "/catalog";
+  try {
+    const url = new URL(value, "https://vault.local");
+    return url.origin === "https://vault.local" && url.pathname === "/catalog"
+      ? `${url.pathname}${url.search}`
+      : "/catalog";
+  } catch {
+    return "/catalog";
+  }
+}
+
+export function getCatalogScrollStorageKey(returnHref: string | null | undefined) {
+  return `vault:catalog-scroll:${sanitizeCatalogReturnPath(returnHref)}`;
+}
+
+export function shouldStoreCatalogScroll(pathname: string, returnHref: string | null | undefined) {
+  return pathname === "/catalog" && sanitizeCatalogReturnPath(returnHref).startsWith("/catalog");
+}
+
+export function parseCatalogScrollPosition(value: string | null | undefined) {
+  if (!value) return null;
+  const position = Number(value);
+  return Number.isFinite(position) && position >= 0 ? position : null;
 }

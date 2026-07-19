@@ -20,7 +20,7 @@
 
 .documentNav {
   position: sticky;
-  top: 121px;
+  top: var(--sticky-header-offset);
   overflow: hidden;
 }
 
@@ -220,6 +220,9 @@
 }
 
 .documentFooter a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
   color: #aec1f8;
   font-size: 0.75rem;
   font-weight: 700;
@@ -227,7 +230,7 @@
 
 .documentFooter .primaryLink {
   display: inline-flex;
-  min-height: 42px;
+  min-height: 44px;
   align-items: center;
   border-radius: var(--radius-control);
   background: var(--accent);
@@ -236,6 +239,8 @@
 }
 
 @media (max-width: 900px) {
+  .documentNav nav a,
+  .documentFooter a { display: inline-flex; min-width: 44px; min-height: 44px; align-items: center; }
   .legalLayout {
     grid-template-columns: 1fr;
   }
@@ -246,6 +251,17 @@
 
   .documentNav nav {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1024px) {
+  .documentNav nav a,
+  .documentFooter a,
+  .document a {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
   }
 }
 

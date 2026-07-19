@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 
 import { AccountShell } from "@/features/account/AccountShell";
 
@@ -9,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function AccountLayout({ children }: { children: ReactNode }) {
-  return <AccountShell>{children}</AccountShell>;
+  return (
+    <Suspense fallback={<main id="main-content" aria-busy="true" aria-live="polite" className="account-loading"><span>Загрузка личного кабинета…</span></main>}>
+      <AccountShell>{children}</AccountShell>
+    </Suspense>
+  );
 }

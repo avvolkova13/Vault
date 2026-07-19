@@ -271,6 +271,14 @@
   border-color: var(--accent-hover);
 }
 
+.field input:focus-visible,
+.tabs button:focus-visible,
+.changeEmailButton:focus-visible,
+.mainButton:focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 2px;
+}
+
 .field input:disabled {
   opacity: 0.55;
   cursor: not-allowed;
@@ -306,6 +314,9 @@
 }
 
 .changeEmailButton {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
   width: fit-content;
   margin-top: 10px;
   border: 0;
@@ -334,6 +345,9 @@
 }
 
 .connectedActions > a:last-child {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
   color: #afc0f2;
   font-size: 0.78rem;
 }
@@ -352,7 +366,7 @@
 
 .contextCard {
   position: sticky;
-  top: 121px;
+  top: var(--sticky-header-offset);
   padding: 24px;
 }
 
@@ -421,7 +435,7 @@
 
 .sessionStatus button {
   width: fit-content;
-  min-height: 36px;
+  min-height: 44px;
   margin-top: 10px;
   border: 1px solid var(--border-strong);
   border-radius: 7px;
@@ -586,4 +600,10 @@
     align-items: stretch;
     flex-direction: column;
   }
+}
+
+@media (max-width: 900px) {
+  .connectedActions a,
+  .successActions a,
+  .changeEmailButton { display: inline-flex; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; }
 }

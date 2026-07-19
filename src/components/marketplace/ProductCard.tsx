@@ -2,10 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 import { Button, StatusBadge } from "@/components/ui/UI";
 import { Icon } from "@/components/ui/Icon";
-import { getProductStatusLabel } from "@/lib/catalog";
+import { getCatalogScrollStorageKey, getProductStatusLabel, shouldStoreCatalogScroll } from "@/lib/catalog";
 import type { Product } from "@/types/commerce";
 
 import { useMarketplace } from "./MarketplaceProvider";
@@ -43,15 +44,26 @@ export function ProductCard({
   compact = false,
   priority = false,
   headingLevel = 3,
+  returnHref,
 }: {
   product: Product;
   compact?: boolean;
   priority?: boolean;
   headingLevel?: 2 | 3;
+  returnHref?: string;
 }) {
   const { cart, addToCart } = useMarketplace();
+  const pathname = usePathname();
   const selected = cart.some((item) => item.id === product.id);
   const ProductTitle = `h${headingLevel}` as "h2" | "h3";
+  const detailHref = returnHref ? `/catalog/${product.slug}?returnTo=${encodeURIComponent(returnHref)}` : `/catalog/${product.slug}`;
+
+  function rememberCatalogPosition() {
+    if (!returnHref || !shouldStoreCatalogScroll(pathname, returnHref)) return;
+    try {
+      window.sessionStorage.setItem(getCatalogScrollStorageKey(returnHref), String(window.scrollY));
+    } catch { /* Navigation remains available when storage is blocked. */ }
+  }
 
   return (
     <article className={`${styles.productCard} ${compact ? styles.compactCard : ""}`}>
@@ -59,8 +71,10 @@ export function ProductCard({
         <span className={styles.productCategory}>{product.category}</span>
         <Link
           className={styles.productVisualLink}
-          href={`/catalog/${product.slug}`}
-          aria-label={`Открыть товар «${product.title}»`}
+          href={detailHref}
+          onClick={rememberCatalogPosition}
+          aria-hidden="true"
+          tabIndex={-1}
         >
           <ProductVisual product={product} priority={priority} />
         </Link>
@@ -72,7 +86,7 @@ export function ProductCard({
           ))}
         </div>
         <ProductTitle>
-          <Link className={styles.productTitleLink} href={`/catalog/${product.slug}`}>
+          <Link className={styles.productTitleLink} href={detailHref} onClick={rememberCatalogPosition}>
             {product.title}
           </Link>
         </ProductTitle>
@@ -90,10 +104,10 @@ export function ProductCard({
           <Button
             tone={selected ? "secondary" : "primary"}
             type="button"
-            onClick={() => addToCart({ id: product.id, title: product.title })}
+            onClick={() => { void addToCart({ id: product.id, title: product.title }); }}
             disabled={selected}
           >
-            {selected ? "Добавлено" : "Купить"}
+            {selected ? "Добавлено" : "В корзину"}
           </Button>
         </div>
       </div>

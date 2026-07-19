@@ -1,17 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import { useMarketplace } from "@/components/marketplace/MarketplaceProvider";
 import { Button, StatusBadge } from "@/components/ui/UI";
+import { siteConfig } from "@/config/site";
 import { faqItems } from "@/data/home";
 import { sortOrdersNewestFirst } from "@/lib/account";
 import {
-  normalizeSupportDraft,
+  clearSupportDraft,
+  getSupportDraftStorageKeys,
+  loadSupportDraft,
+  saveSupportDraft,
+  SUPPORT_DRAFTS_STORAGE_KEY,
   supportCategories,
   validateSupportDraft,
 } from "@/lib/support";
+import { getSessionAccountKeys } from "@/lib/marketplace-state";
 import type { FAQ } from "@/types/commerce";
 import type {
   SupportCategory,
@@ -21,8 +27,6 @@ import type {
 } from "@/types/support";
 
 import styles from "./support.module.css";
-
-const STORAGE_KEY = "vault-support-draft-v1";
 
 const emptyForm: SupportDraftInput = {
   category: "payment",
@@ -48,48 +52,92 @@ function formatSavedTime(value: string) {
 }
 
 export function SupportCenter() {
-  const { orders, session, notify } = useMarketplace();
+  const { orders, session, accountKey, notify } = useMarketplace();
   const [form, setForm] = useState<SupportDraftInput>(emptyForm);
   const [errors, setErrors] = useState<SupportDraftErrors>({});
   const [savedDraft, setSavedDraft] = useState<SupportDraft | null>(null);
+  const [storageError, setStorageError] = useState("");
+  const subjectRef = useRef<HTMLInputElement>(null);
+  const messageRef = useRef<HTMLTextAreaElement>(null);
+  const savedDraftRef = useRef<SupportDraft | null>(null);
+  const accountKeys = useMemo(() => getSessionAccountKeys(session), [session]);
+  const accountSignature = useMemo(() => [...accountKeys].sort().join("|"), [accountKeys]);
+  const storageKeys = useMemo(() => getSupportDraftStorageKeys(accountKeys), [accountKeys]);
+  const storageKey = accountKey ? storageKeys[0] ?? null : null;
   const sortedOrders = useMemo(() => sortOrdersNewestFirst(orders), [orders]);
+  const mutationOriginRef = useRef({ accountSignature, generation: 0 });
   const activeFaq = useMemo(() => {
     const group = faqGroupByCategory[form.category];
     return (group ? faqItems.filter((item) => item.group === group) : faqItems).slice(0, 4);
   }, [form.category]);
 
   useEffect(() => {
+    mutationOriginRef.current = { accountSignature, generation: mutationOriginRef.current.generation + 1 };
+  }, [accountSignature]);
+
+  useEffect(() => {
     let storedDraft: SupportDraft | null = null;
+    let nextStorageError = "";
     try {
-      const rawDraft = window.localStorage.getItem(STORAGE_KEY);
-      storedDraft = rawDraft ? normalizeSupportDraft(JSON.parse(rawDraft)) : null;
+      storedDraft = storageKey ? loadSupportDraft(window.localStorage, accountKeys) : null;
     } catch {
-      window.localStorage.removeItem(STORAGE_KEY);
+      nextStorageError = "Локальное сохранение недоступно. Скопируйте текст обращения и отправьте его на почту поддержки.";
     }
 
-    if (!storedDraft) return;
     const hydrationTask = window.setTimeout(() => {
-      setForm({
+      setForm(storedDraft ? {
         category: storedDraft.category,
         orderId: storedDraft.orderId,
         subject: storedDraft.subject,
         message: storedDraft.message,
-      });
+      } : emptyForm);
       setSavedDraft(storedDraft);
+      savedDraftRef.current = storedDraft;
+      setErrors({});
+      setStorageError(nextStorageError);
     }, 0);
     return () => window.clearTimeout(hydrationTask);
-  }, []);
+  }, [accountKeys, storageKey]);
+
+  useEffect(() => {
+    if (!storageKeys.length) return;
+    const relevantKeys = new Set([...storageKeys, SUPPORT_DRAFTS_STORAGE_KEY]);
+    function synchronizeDraft(event: StorageEvent) {
+      if (!event.key || !relevantKeys.has(event.key)) return;
+      try {
+        const newest = loadSupportDraft(window.localStorage, accountKeys);
+        const current = savedDraftRef.current;
+        if (newest && (!current || Date.parse(newest.updatedAt) >= Date.parse(current.updatedAt))) {
+          savedDraftRef.current = newest;
+          setSavedDraft(newest);
+          setForm({ category: newest.category, orderId: newest.orderId, subject: newest.subject, message: newest.message });
+          setStorageError("");
+        } else if (!newest && current) {
+          savedDraftRef.current = null;
+          setSavedDraft(null);
+          setForm(emptyForm);
+        }
+      } catch {
+        setStorageError("Не удалось синхронизировать черновик между вкладками.");
+      }
+    }
+    window.addEventListener("storage", synchronizeDraft);
+    return () => window.removeEventListener("storage", synchronizeDraft);
+  }, [accountKeys, storageKeys]);
 
   function updateField<Key extends keyof SupportDraftInput>(key: Key, value: SupportDraftInput[Key]) {
     setForm((current) => ({ ...current, [key]: value }));
     if (key === "subject" || key === "message") setErrors((current) => ({ ...current, [key]: undefined }));
   }
 
-  function saveDraft(event: FormEvent<HTMLFormElement>) {
+  async function saveDraft(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const nextErrors = validateSupportDraft(form);
     setErrors(nextErrors);
-    if (Object.keys(nextErrors).length) return;
+    if (Object.keys(nextErrors).length) {
+      window.requestAnimationFrame(() => (nextErrors.subject ? subjectRef.current : messageRef.current)?.focus());
+      return;
+    }
 
     const draft: SupportDraft = {
       category: form.category,
@@ -98,17 +146,60 @@ export function SupportCenter() {
       message: form.message.trim(),
       updatedAt: new Date().toISOString(),
     };
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
-    setForm({ category: draft.category, orderId: draft.orderId, subject: draft.subject, message: draft.message });
-    setSavedDraft(draft);
-    notify("Обращение отправлено. Ответ появится в личном кабинете.");
+    if (!storageKey) return;
+    const origin = mutationOriginRef.current;
+    try {
+      const result = await saveSupportDraft({ locks: navigator.locks, storage: window.localStorage, accountKeys, draft });
+      if (mutationOriginRef.current !== origin) return;
+      if (result.status === "newer-exists") {
+        savedDraftRef.current = result.draft;
+        setSavedDraft(result.draft);
+        setForm({ category: result.draft.category, orderId: result.draft.orderId, subject: result.draft.subject, message: result.draft.message });
+        notify("В другой вкладке сохранён более новый черновик.");
+        return;
+      }
+      if (result.status === "saved") {
+        setStorageError("");
+        setForm({ category: result.draft.category, orderId: result.draft.orderId, subject: result.draft.subject, message: result.draft.message });
+        setSavedDraft(result.draft);
+        savedDraftRef.current = result.draft;
+        notify("Черновик обращения сохранён.");
+        return;
+      }
+    } catch {
+      if (mutationOriginRef.current !== origin) return;
+      setStorageError("Не удалось сохранить черновик в этом браузере. Скопируйте текст и отправьте его на почту поддержки.");
+      notify("Не удалось сохранить черновик в этом браузере.");
+      return;
+    }
   }
 
-  function clearDraft() {
-    window.localStorage.removeItem(STORAGE_KEY);
+  async function clearDraft() {
+    const origin = mutationOriginRef.current;
+    if (storageKeys.length && savedDraft) {
+      try {
+        const result = await clearSupportDraft({ locks: navigator.locks, storage: window.localStorage, accountKeys, expectedDraft: savedDraft });
+        if (mutationOriginRef.current !== origin) return;
+        if (result.status === "newer-exists") {
+          savedDraftRef.current = result.draft;
+          setSavedDraft(result.draft);
+          setForm({ category: result.draft.category, orderId: result.draft.orderId, subject: result.draft.subject, message: result.draft.message });
+          notify("Новый черновик из другой вкладки сохранён.");
+          return;
+        }
+      } catch {
+        if (mutationOriginRef.current !== origin) return;
+        setStorageError("Не удалось очистить черновик в этом браузере. Текст оставлен в форме — проверьте доступ к локальному хранилищу.");
+        notify("Не удалось очистить черновик. Данные сохранены в форме.");
+        return;
+      }
+    }
+    if (mutationOriginRef.current !== origin) return;
     setForm(emptyForm);
     setSavedDraft(null);
+    savedDraftRef.current = null;
     setErrors({});
+    setStorageError("");
     notify("Форма обращения очищена.");
   }
 
@@ -118,12 +209,12 @@ export function SupportCenter() {
         <div>
           <span>Центр помощи</span>
           <h2>Связаться с поддержкой</h2>
-          <p>Опишите проблему и при необходимости привяжите заказ. Ответ появится в личном кабинете.</p>
+          <p>Сохраните детали обращения в черновике или напишите в поддержку по электронной почте.</p>
         </div>
         <div className={styles.channelState}>
-          <span>Среднее время ответа</span>
-          <StatusBadge>До 15 минут</StatusBadge>
-          <small>Поддержка работает ежедневно и отвечает по очереди.</small>
+          <span>Канал поддержки</span>
+          <StatusBadge>Email</StatusBadge>
+          <small><a href={`mailto:${siteConfig.support.email}`}>{siteConfig.support.email}</a></small>
         </div>
       </section>
 
@@ -131,10 +222,11 @@ export function SupportCenter() {
         <section className={styles.panel}>
           <div className={styles.sectionHeading}>
             <div><span>Новое обращение</span><h2>Расскажите, что случилось</h2><p>Обязательные поля отмечены звёздочкой.</p></div>
-            {savedDraft ? <StatusBadge>Отправлено</StatusBadge> : null}
+            {savedDraft ? <StatusBadge>Черновик сохранён</StatusBadge> : null}
           </div>
 
           <form className={styles.form} noValidate onSubmit={saveDraft}>
+            {storageError ? <p className={styles.storageAlert} role="alert">{storageError}</p> : null}
             <fieldset className={styles.categoryFieldset}>
               <legend>Категория *</legend>
               <div className={styles.categoryGrid}>
@@ -158,22 +250,22 @@ export function SupportCenter() {
 
             <div className={styles.field}>
               <label htmlFor="support-subject">Тема *</label>
-              <input id="support-subject" value={form.subject} maxLength={90} aria-invalid={!!errors.subject} aria-describedby={errors.subject ? "support-subject-error" : undefined} placeholder="Например: не приходит предложение обмена" onChange={(event) => updateField("subject", event.target.value)} />
+              <input ref={subjectRef} id="support-subject" value={form.subject} maxLength={90} aria-invalid={!!errors.subject} aria-describedby={errors.subject ? "support-subject-error" : undefined} placeholder="Например: не приходит предложение обмена" onChange={(event) => updateField("subject", event.target.value)} />
               <div className={styles.fieldMeta}><span>{errors.subject ? <span id="support-subject-error" className={styles.error} role="alert">{errors.subject}</span> : "Коротко опишите проблему."}</span><small>{form.subject.length}/90</small></div>
             </div>
 
             <div className={styles.field}>
               <label htmlFor="support-message">Описание *</label>
-              <textarea id="support-message" value={form.message} maxLength={1500} rows={7} aria-invalid={!!errors.message} aria-describedby={errors.message ? "support-message-error" : undefined} placeholder="Что произошло, когда и какой результат вы ожидали?" onChange={(event) => updateField("message", event.target.value)} />
+              <textarea ref={messageRef} id="support-message" value={form.message} maxLength={1500} rows={7} aria-invalid={!!errors.message} aria-describedby={errors.message ? "support-message-error" : undefined} placeholder="Что произошло, когда и какой результат вы ожидали?" onChange={(event) => updateField("message", event.target.value)} />
               <div className={styles.fieldMeta}><span>{errors.message ? <span id="support-message-error" className={styles.error} role="alert">{errors.message}</span> : "Не добавляйте пароли, платёжные реквизиты и коды Steam Guard."}</span><small>{form.message.length}/1500</small></div>
             </div>
 
             <div className={styles.formFooter}>
               <div>
-                <Button type="submit">Отправить обращение</Button>
-                {savedDraft ? <Button type="button" tone="quiet" onClick={clearDraft}>Новое обращение</Button> : null}
+                <Button type="submit">Сохранить черновик</Button>
+                {savedDraft ? <Button type="button" tone="quiet" onClick={clearDraft}>Очистить черновик</Button> : null}
               </div>
-              <p>{savedDraft ? `Отправлено ${formatSavedTime(savedDraft.updatedAt)}. Мы уведомим вас об ответе.` : "Ответ поддержки появится в этом разделе и будет привязан к аккаунту."}</p>
+              <p>{savedDraft ? `Черновик сохранён ${formatSavedTime(savedDraft.updatedAt)}.` : <>Для отправки используйте <a href={`mailto:${siteConfig.support.email}`}>{siteConfig.support.email}</a>.</>}</p>
             </div>
           </form>
         </section>

@@ -22,7 +22,7 @@ export function Hero() {
           </div>
           <h1>Цифровые товары для игр и сервисов</h1>
           <p>
-            Пополняйте баланс Steam, оплачивайте доступ к GPT и выбирайте игровые предметы в одном каталоге.
+            Сравнивайте предложения Steam, GPT и игровых предметов с ценами в Coins. Оформление сохраняет локальный заказ; внешняя выдача пока не подключена.
           </p>
           <div className={styles.heroActions}>
             <Link className={styles.primaryLink} href="/catalog">Перейти в каталог</Link>
@@ -38,13 +38,13 @@ export function Hero() {
         </div>
         <div className={styles.inventory} aria-label="Товары из каталога">
           <div className={styles.inventoryHeader}>
-            <span>Товары в наличии</span>
+            <span>Предложения каталога</span>
             <strong>Steam &amp; CS2</strong>
           </div>
           <div className={styles.inventoryGrid}>
             <ProductCard product={ak} compact priority />
             <ProductCard product={steam} compact priority />
-            <ProductCard product={awp} compact priority />
+            <ProductCard product={awp} compact />
           </div>
         </div>
       </Container>

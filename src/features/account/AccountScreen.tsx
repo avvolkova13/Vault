@@ -9,8 +9,12 @@ import { useMarketplace } from "@/components/marketplace/MarketplaceProvider";
 import { Button, StatusBadge } from "@/components/ui/UI";
 import { SupportCenter } from "@/features/support/SupportCenter";
 import {
+  getOverviewTransactions,
   getInventoryItems,
-  getInventoryPreviewItems,
+  getOrderItemDeliveryStatusLabel,
+  getRelevantOrderRecipient,
+  getTradeStatusLabel,
+  getTransactionStatusLabel,
   sortOrdersNewestFirst,
 } from "@/lib/account";
 import type { CoinTransaction, MarketplaceOrder, TradeEvent } from "@/types/account";
@@ -22,7 +26,7 @@ export type AccountSection = "overview" | "purchases" | "payments" | "inventory"
 
 const orderStatus = {
   completed: { label: "Выполнен", tone: "success" as const },
-  processing: { label: "Обрабатывается", tone: "warning" as const },
+  processing: { label: "Сохранён локально", tone: "warning" as const },
   cancelled: { label: "Отменён", tone: "neutral" as const },
 };
 
@@ -78,6 +82,7 @@ function OrderTable({ orders, compact = false }: { orders: MarketplaceOrder[]; c
           {orders.map((order) => {
             const status = orderStatus[order.status];
             const isExpanded = expandedOrder === order.id;
+            const recipient = getRelevantOrderRecipient(order.items, order.recipient);
             return (
               <Fragment key={order.id}>
               <tr className={styles.orderGroup}>
@@ -95,8 +100,14 @@ function OrderTable({ orders, compact = false }: { orders: MarketplaceOrder[]; c
                 <tr className={styles.detailRow}>
                   <td colSpan={5}>
                     <div id={`order-details-${order.id}`} className={styles.inlineOrderDetails}>
-                      <span>Заказ Vault</span>
+                      <span>Данные локального заказа</span>
                       <p>{order.items.length === 1 ? order.items[0].title : `${order.items.length} товара в заказе`}</p>
+                      <dl className={styles.orderDetailFacts}>
+                        {recipient?.steamLogin ? <div><dt>Логин Steam</dt><dd>{recipient.steamLogin}</dd></div> : null}
+                        {recipient?.steamTradeUrl ? <div><dt>Steam Trade URL заказа</dt><dd className={styles.breakableValue}>{recipient.steamTradeUrl}</dd></div> : null}
+                        {recipient?.gptEmail ? <div><dt>Email получателя</dt><dd>{recipient.gptEmail}</dd></div> : null}
+                        {order.items.map((item) => <div key={item.id}><dt>{item.title}</dt><dd>{getOrderItemDeliveryStatusLabel(item.deliveryStatus)}</dd></div>)}
+                      </dl>
                       <div>
                         {order.items.map((item) => <Link key={item.id} href={`/catalog/${item.slug}`} aria-label={`Открыть товар «${item.title}»`}>Открыть товар</Link>)}
                         {order.items.some((item) => item.kind === "skins" && item.deliveryStatus === "inventory-ready") ? <Link href="/account/inventory">К инвентарю</Link> : null}
@@ -127,10 +138,10 @@ function TransactionsTable({ transactions }: { transactions: CoinTransaction[] }
         <tbody>{sorted.map((transaction) => (
           <tr key={transaction.id}>
             <td data-label="Дата"><time dateTime={transaction.createdAt}>{formatDate(transaction.createdAt)}</time></td>
-            <td data-label="Операция"><span className={styles.cellStack}><strong>{transaction.reason === "top-up" ? "Пополнение баланса" : "Покупка"}</strong><span>{transaction.orderNumber ?? "Coins"}</span></span></td>
-            <td data-label="Изменение" className={transaction.direction === "credit" ? styles.credit : styles.debit}>{transaction.direction === "credit" ? "+" : "−"}{formatCoins(transaction.amountCoins)} Coins</td>
+            <td data-label="Операция"><span className={styles.cellStack}><strong>{transaction.reason === "top-up" ? "Пополнение баланса" : transaction.reason === "sale" ? "Продажа предмета" : "Покупка"}</strong><span>{transaction.orderNumber ?? "Coins"}</span></span></td>
+            <td data-label="Изменение" className={transaction.status === "failed" ? undefined : transaction.direction === "credit" ? styles.credit : styles.debit}>{transaction.status === "failed" ? "Баланс не изменён" : `${transaction.direction === "credit" ? "+" : "−"}${formatCoins(transaction.amountCoins)} Coins`}</td>
             <td data-label="Баланс после" className={styles.coinCell}>{formatCoins(transaction.balanceAfterCoins)} Coins</td>
-            <td data-label="Статус"><StatusBadge tone={transaction.status === "completed" ? "success" : "neutral"}>{transaction.direction === "credit" ? "Зачислено" : "Списано"}</StatusBadge></td>
+            <td data-label="Статус"><StatusBadge tone={transaction.status === "completed" ? "success" : "neutral"}>{getTransactionStatusLabel(transaction)}</StatusBadge></td>
           </tr>
         ))}</tbody>
       </table>
@@ -144,7 +155,7 @@ function TradeLog({ events }: { events: TradeEvent[] }) {
 
   return (
     <section className={styles.panel}>
-      <SectionHeading label="Steam Trade" title="Лог торговых операций" description="Покупки, заявки на продажу и вывод предметов." />
+      <SectionHeading label="Steam Trade" title="Лог торговых операций" description="Локальные записи заказов и действий с игровыми предметами." />
       {sorted.length ? (
         <div className={styles.tradeLog}>
           {sorted.map((event) => (
@@ -152,7 +163,7 @@ function TradeLog({ events }: { events: TradeEvent[] }) {
               <span className={styles.tradeLogDirection}>{event.direction === "purchase" ? "↓" : "↑"}</span>
               <div><strong>{labels[event.direction]}</strong><span>{event.title}</span></div>
               <small>{event.orderNumber ?? "Без номера"}</small>
-              <StatusBadge tone={event.status === "completed" ? "success" : "warning"}>{event.status === "completed" ? "Выполнено" : "В обработке"}</StatusBadge>
+              <StatusBadge tone={event.status === "completed" ? "success" : "neutral"}>{getTradeStatusLabel(event.status)}</StatusBadge>
             </div>
           ))}
         </div>
@@ -164,8 +175,9 @@ function TradeLog({ events }: { events: TradeEvent[] }) {
 function Overview() {
   const { balanceCoins, orders, transactions, tradeEvents, session, hasSteam, steamTradeUrl } = useMarketplace();
   const recentOrders = useMemo(() => sortOrdersNewestFirst(orders).slice(0, 3), [orders]);
-  const inventory = useMemo(() => getInventoryPreviewItems(orders), [orders]);
+  const inventory = useMemo(() => getInventoryItems(orders, tradeEvents), [orders, tradeEvents]);
   const activeOrders = orders.filter((order) => order.status === "processing").length;
+  const recentTransactions = useMemo(() => getOverviewTransactions(transactions), [transactions]);
 
   return (
     <div className={styles.sectionStack}>
@@ -173,10 +185,10 @@ function Overview() {
         <div className={styles.balanceHero}><span>Доступно</span><strong>{formatCoins(balanceCoins)} <small>Coins</small></strong><Link href="/balance/top-up">Пополнить</Link></div>
         <dl>
           <div><dt>Заказов</dt><dd>{orders.length}</dd></div>
-          <div><dt>В обработке</dt><dd>{activeOrders}</dd></div>
+          <div><dt>Без внешней выдачи</dt><dd>{activeOrders}</dd></div>
           <div><dt>В инвентаре</dt><dd>{inventory.length}</dd></div>
         </dl>
-        <div className={styles.accountReadiness}><span>Готовность аккаунта</span><strong>{hasSteam && steamTradeUrl ? "Готов к получению" : "Нужна настройка Steam"}</strong><small>Email {session?.emailAccount ? "подтверждён" : "не подключён"} · Steam {hasSteam ? "подключён" : "не подключён"}</small><Link href="/account/steam">Проверить Steam</Link></div>
+        <div className={styles.accountReadiness}><span>Настройки аккаунта</span><strong>{hasSteam && steamTradeUrl ? "Данные Steam настроены" : "Нужна настройка Steam"}</strong><small>Email {session?.emailAccount ? "подтверждён" : "не подключён"} · Steam {hasSteam ? "подключён" : "не подключён"}</small><Link href="/account/steam">Проверить Steam</Link></div>
       </section>
 
       <section className={styles.panel}>
@@ -187,11 +199,11 @@ function Overview() {
       <div className={styles.twoColumns}>
         <section className={styles.panel}>
           <SectionHeading label="Coins" title="Последние операции" description="Только движения внутреннего баланса." action={<Link href="/account/payments">Вся история</Link>} />
-          {transactions.length ? <div className={styles.compactTransactions}>{transactions.slice(0, 3).map((transaction) => <div key={transaction.id}><span>{transaction.reason === "top-up" ? "Пополнение" : transaction.orderNumber ?? "Покупка"}<time dateTime={transaction.createdAt}>{formatDate(transaction.createdAt)}</time></span><strong data-direction={transaction.direction}>{transaction.direction === "credit" ? "+" : "−"}{formatCoins(transaction.amountCoins)} Coins</strong></div>)}</div> : <p className={styles.mutedCopy}>Операций Coins пока нет.</p>}
+          {recentTransactions.length ? <div className={styles.compactTransactions}>{recentTransactions.map(({ transaction, amountLabel, direction }) => <div key={transaction.id}><span>{transaction.reason === "top-up" ? "Пополнение" : transaction.orderNumber ?? "Покупка"}<time dateTime={transaction.createdAt}>{formatDate(transaction.createdAt)}</time></span><strong data-direction={direction}>{amountLabel}</strong></div>)}</div> : <p className={styles.mutedCopy}>Операций Coins пока нет.</p>}
         </section>
         <section className={styles.panel}>
           <SectionHeading label="Предметы" title="Инвентарь" description="Игровые предметы из выполненных заказов." action={<Link href="/account/inventory">Открыть</Link>} />
-          {inventory.length ? <div className={styles.inventoryMini}>{inventory.slice(0, 2).map((item) => <div key={item.id}>{item.image ? <span><Image src={item.image} alt={item.imageAlt ?? ""} fill sizes="72px" /></span> : null}<p><strong>{item.title}</strong><small>{formatCoins(item.priceCoins)} Coins · Готов к получению</small></p></div>)}</div> : <p className={styles.mutedCopy}>Выполненных заказов с игровыми предметами пока нет.</p>}
+          {inventory.length ? <div className={styles.inventoryMini}>{inventory.slice(0, 2).map((item) => <div key={item.id}>{item.image ? <span><Image src={item.image} alt={item.imageAlt ?? ""} fill sizes="72px" /></span> : null}<p><strong>{item.title}</strong><small>{formatCoins(item.priceCoins)} Coins · Сохранено в локальном инвентаре</small></p></div>)}</div> : <p className={styles.mutedCopy}>Выполненных заказов с игровыми предметами пока нет.</p>}
         </section>
       </div>
       <TradeLog events={tradeEvents} />
@@ -211,25 +223,26 @@ function Payments() {
 }
 
 function Inventory() {
-  const { orders, hasSteam, steamTradeUrl, requestSale, requestWithdrawal } = useMarketplace();
-  const items = useMemo(() => getInventoryItems(orders), [orders]);
-  const isSteamReady = hasSteam && !!steamTradeUrl;
+  const { orders, tradeEvents, hasSteam, steamTradeUrl, sellInventoryItem, withdrawInventoryItem } = useMarketplace();
+  const items = useMemo(() => getInventoryItems(orders, tradeEvents), [orders, tradeEvents]);
+  const isSteamDataConfigured = hasSteam && !!steamTradeUrl;
   const withdrawalReason = !hasSteam
     ? "Вывод недоступен: подключите Steam-профиль."
     : !steamTradeUrl
       ? "Вывод недоступен: сохраните Steam Trade URL."
-      : "Предмет будет отправлен на сохранённый Steam Trade URL.";
+    : "Данные готовы, но отправка станет доступна после подключения обработки Steam Trade.";
+  const saleReason = "Coins зачисляются сразу после локального подтверждения продажи.";
 
   return (
     <div className={styles.sectionStack}>
       <section className={styles.readinessPanel}>
-        <div><span>Готовность Steam</span><h2>{isSteamReady ? "Данные для передачи настроены" : "Завершите настройку Steam"}</h2><p>Подключите профиль и сохраните ссылку обмена для вывода предметов.</p></div>
-        <dl><div><dt>Steam</dt><dd>{hasSteam ? "Подключён" : "Не подключён"}</dd></div><div><dt>Trade URL</dt><dd>{steamTradeUrl ? "Сохранён" : "Не добавлен"}</dd></div><div><dt>Передача</dt><dd>{isSteamReady ? "Доступна" : "Нужна настройка"}</dd></div></dl>
+        <div><span>Настройки Steam</span><h2>{isSteamDataConfigured ? "Данные Steam настроены" : "Завершите настройку Steam"}</h2><p>Профиль и Trade URL сохраняются локально. Внешняя передача предметов не подключена.</p></div>
+        <dl><div><dt>Steam</dt><dd>{hasSteam ? "Подключён локально" : "Не подключён"}</dd></div><div><dt>Trade URL</dt><dd>{steamTradeUrl ? "Сохранён" : "Не добавлен"}</dd></div><div><dt>Передача</dt><dd>Не подключена</dd></div></dl>
         <Link className={styles.primaryLink} href="/account/steam">Профиль Steam</Link>
       </section>
 
       <section className={styles.panel}>
-        <SectionHeading label="Настройка получения" title="Steam Trade URL" description="Ссылка понадобится для передачи предметов. Пароль Steam не требуется." />
+        <SectionHeading label="Настройки заказа" title="Steam Trade URL" description="Ссылка сохраняется для заказа игрового предмета. Пароль Steam не требуется." />
         <SteamTradeUrlForm returnTo="/account/inventory" />
       </section>
 
@@ -246,7 +259,7 @@ function Inventory() {
                     {item.image ? <Image src={item.image} alt={item.imageAlt ?? ""} fill sizes="(max-width: 720px) 100vw, 360px" priority={index === 0} /> : <span className={styles.inventoryFallback} aria-hidden="true">VLT</span>}
                   </Link>
                   <div className={styles.inventoryCardBody}>
-                    <div className={styles.inventoryCardTopline}><span>Игровой предмет</span><StatusBadge tone={isSteamReady ? "success" : "warning"}>{isSteamReady ? "Данные готовы" : "Нужна настройка"}</StatusBadge></div>
+                    <div className={styles.inventoryCardTopline}><span>Игровой предмет</span><StatusBadge tone={isSteamDataConfigured ? "success" : "warning"}>{isSteamDataConfigured ? "Настройки сохранены" : "Нужна настройка"}</StatusBadge></div>
                     <h3><Link href={`/catalog/${item.slug}`}>{item.title}</Link></h3>
                     <dl className={styles.inventoryMeta}>
                       <div><dt>Стоимость покупки</dt><dd>{formatCoins(item.priceCoins)} Coins</dd></div>
@@ -254,9 +267,9 @@ function Inventory() {
                       <div><dt>Получен</dt><dd><time dateTime={item.acquiredAt}>{formatDate(item.acquiredAt)}</time></dd></div>
                     </dl>
                     <div className={styles.inventoryActions}>
-                      <Button type="button" aria-describedby={saleReasonId} onClick={() => requestSale({ id: item.id, title: item.title, orderNumber: item.orderNumber })}>Продать сайту за Coins</Button>
-                      <p id={saleReasonId}>Заявка передана на проверку, результат появится в истории операций.</p>
-                      <Button tone="secondary" type="button" disabled={!isSteamReady} aria-describedby={withdrawalReasonId} onClick={() => requestWithdrawal({ id: item.id, title: item.title, orderNumber: item.orderNumber })}>Вывести в Steam</Button>
+                      <Button type="button" aria-describedby={saleReasonId} onClick={() => void sellInventoryItem(item.id)}>Продать сайту за Coins</Button>
+                      <p id={saleReasonId}>{saleReason}</p>
+                      <Button tone="secondary" type="button" aria-describedby={withdrawalReasonId} onClick={() => void withdrawInventoryItem(item.id)}>Вывести в Steam</Button>
                       <p id={withdrawalReasonId}>{withdrawalReason}</p>
                     </div>
                   </div>
@@ -270,19 +283,24 @@ function Inventory() {
   );
 }
 
-function SteamSettings() {
+function SteamSettings({ returnTo }: { returnTo?: "/checkout" | "/cart" | null }) {
   const { session, hasSteam } = useMarketplace();
+  const connectHref = returnTo === "/checkout"
+    ? "/auth?method=steam&returnTo=%2Faccount%2Fsteam%3FreturnTo%3D%252Fcheckout"
+    : returnTo === "/cart"
+      ? "/auth?method=steam&returnTo=%2Faccount%2Fsteam%3FreturnTo%3D%252Fcart"
+      : "/auth?method=steam&returnTo=%2Faccount%2Fsteam";
 
   return (
     <div className={styles.sectionStack}>
       <section className={styles.steamProfile}>
         <span className={styles.steamMark}>ST</span>
-        <div><span>Steam-профиль</span><h2>{hasSteam ? session?.steamAccount?.displayName : "Steam не подключён"}</h2><p>{hasSteam ? `Steam ID: ${session?.steamAccount?.steamId}` : "Подключите Steam, чтобы получать игровые предметы."}</p></div>
-        {hasSteam ? <StatusBadge>Подключён</StatusBadge> : <Link className={styles.primaryLink} href="/auth?method=steam&returnTo=%2Faccount%2Fsteam">Подключить Steam</Link>}
+        <div><span>Steam-профиль</span><h2>{hasSteam ? session?.steamAccount?.displayName : "Steam не подключён"}</h2><p>{hasSteam ? `Steam ID: ${session?.steamAccount?.steamId}` : "Подключите локальную Steam-сессию для оформления игровых предметов."}</p></div>
+        {hasSteam ? <StatusBadge>Подключён</StatusBadge> : <Link className={styles.primaryLink} href={connectHref}>Подключить Steam</Link>}
       </section>
       <section className={styles.panel}>
-        <SectionHeading label="Передача предметов" title="Steam Trade URL" description="Ссылка нужна только для передачи предметов. Пароль Steam не требуется." />
-        <SteamTradeUrlForm returnTo="/account/steam" />
+        <SectionHeading label="Настройки Steam" title="Steam Trade URL" description="Ссылка сохраняется для заказов игровых предметов. Пароль Steam не требуется." />
+        <SteamTradeUrlForm returnTo={returnTo ?? "/account/steam"} />
       </section>
     </div>
   );
@@ -291,7 +309,11 @@ function SteamSettings() {
 function Settings() {
   const { session, signOut, notify } = useMarketplace();
   const router = useRouter();
-  function logout() { signOut(); notify("Вы вышли из аккаунта Vault."); router.replace("/auth?returnTo=%2Faccount"); }
+  async function logout() {
+    if (!await signOut()) return;
+    notify("Вы вышли из аккаунта Vault.");
+    router.replace("/auth?returnTo=%2Faccount");
+  }
   return (
     <div className={styles.sectionStack}>
       <section className={styles.panel}>
@@ -306,11 +328,11 @@ function Settings() {
   );
 }
 
-export function AccountScreen({ section }: { section: AccountSection }) {
+export function AccountScreen({ section, returnTo }: { section: AccountSection; returnTo?: "/checkout" | "/cart" | null }) {
   if (section === "purchases") return <Purchases />;
   if (section === "payments") return <Payments />;
   if (section === "inventory") return <Inventory />;
-  if (section === "steam") return <SteamSettings />;
+  if (section === "steam") return <SteamSettings returnTo={returnTo} />;
   if (section === "settings") return <Settings />;
   if (section === "support") return <SupportCenter />;
   return <Overview />;

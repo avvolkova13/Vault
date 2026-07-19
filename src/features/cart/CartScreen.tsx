@@ -3,11 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 
 import { useMarketplace } from "@/components/marketplace/MarketplaceProvider";
-import { Breadcrumbs, Button, Checkbox, Container, Skeleton, StatusBadge } from "@/components/ui/UI";
+import { Breadcrumbs, Button, Container, Skeleton, StatusBadge } from "@/components/ui/UI";
 import { getCartItemsLabel } from "@/lib/cart";
+import { getProductStatusLabel } from "@/lib/catalog";
 import { getProductVisualLabel } from "@/lib/product-visual";
 import type { Product } from "@/types/commerce";
 
@@ -52,7 +52,7 @@ function HydratingCart() {
   );
 }
 
-export function CartScreen({ showTopUpNotice = false }: { showTopUpNotice?: boolean }) {
+export function CartScreen() {
   const {
     cart,
     balanceCoins,
@@ -63,17 +63,16 @@ export function CartScreen({ showTopUpNotice = false }: { showTopUpNotice?: bool
     canPurchase,
     isAuthenticated,
     hasSteam,
+    steamTradeUrl,
     isHydrated,
     removeFromCart,
     notify,
   } = useMarketplace();
   const router = useRouter();
-  const [topUpNoticeVisible, setTopUpNoticeVisible] = useState(showTopUpNotice);
-  const [accepted, setAccepted] = useState(false);
 
-  function removeProduct(product: Product) {
+  async function removeProduct(product: Product) {
     const removedIndex = cart.findIndex((item) => item.id === product.id);
-    removeFromCart(product.id);
+    if (!await removeFromCart(product.id)) return;
     notify(`Товар «${product.title}» удалён из корзины.`);
     window.requestAnimationFrame(() => {
       const removeButtons = document.querySelectorAll<HTMLButtonElement>("button[data-cart-remove]");
@@ -101,13 +100,6 @@ export function CartScreen({ showTopUpNotice = false }: { showTopUpNotice?: bool
           <strong>Безопасное оформление</strong>
           Coins списываются только после подтверждения заказа.
         </p>
-        {topUpNoticeVisible ? (
-          <div className={styles.topUpSuccess} role="status">
-            <span><strong>Баланс пополнен.</strong> Товары сохранены — можно продолжить оформление.</span>
-            <button type="button" onClick={() => setTopUpNoticeVisible(false)}>Закрыть</button>
-          </div>
-        ) : null}
-
         {!isHydrated ? <HydratingCart /> : !cart.length ? (
           <section className={styles.emptyPanel} aria-labelledby="empty-cart-title">
             <span className={styles.emptyMark} aria-hidden="true">V</span>
@@ -145,7 +137,7 @@ export function CartScreen({ showTopUpNotice = false }: { showTopUpNotice?: bool
                       </div>
                       <div className={styles.rowCommerce}>
                         <StatusBadge tone={product.availability === "available" ? "success" : "warning"}>
-                          {product.availability === "available" ? "В наличии" : "Под заказ"}
+                          {getProductStatusLabel(product)}
                         </StatusBadge>
                         <p><strong>{formatCoins(product.priceCoins)}</strong> Coins</p>
                         <button
@@ -177,41 +169,45 @@ export function CartScreen({ showTopUpNotice = false }: { showTopUpNotice?: bool
                 <p><strong>{formatCoins(cartTotalCoins)}</strong> Coins</p>
               </div>
 
-              {isAuthenticated ? (
-                <div className={styles.consentBox} id="cart-consent-helper">
-                  <Checkbox
-                    checked={accepted}
-                    onChange={(event) => setAccepted(event.target.checked)}
-                    label={<>Я принимаю условия <Link href="/legal/terms" target="_blank" rel="noopener noreferrer">Пользовательского соглашения (Оферты)</Link> и даю согласие на обработку персональных данных в соответствии с <Link href="/legal/privacy" target="_blank" rel="noopener noreferrer">Политикой конфиденциальности</Link>.</>}
-                  />
-                </div>
-              ) : null}
-
               {!isAuthenticated ? (
                 <div className={styles.authNotice} id="auth-required-note">
-                  <strong>Войдите для пополнения и покупки</strong>
-                  <span>После авторизации вы сможете пополнить Coins и оформить заказ.</span>
-                </div>
-              ) : !hasSufficientBalance ? (
-                <div className={styles.shortfallNotice} id="insufficient-coins-note">
-                  <strong>Не хватает {formatCoins(cartShortfallCoins)} Coins</strong>
-                  <span>Пополните баланс — товары останутся в корзине.</span>
+                  <strong>Войдите для работы с заказом</strong>
+                  <span>После авторизации можно проверить баланс и продолжить локальное оформление.</span>
                 </div>
               ) : requiresSteam && !hasSteam ? (
                 <div className={styles.authNotice} id="steam-required-note">
                   <strong>Для этого заказа нужен Steam</strong>
-                  <span>Steam обязателен для покупки и получения игровых предметов.</span>
+                  <span>Steam обязателен для сохранения данных заказа игрового предмета.</span>
+                </div>
+              ) : requiresSteam && !steamTradeUrl ? (
+                <div className={styles.authNotice} id="trade-url-required-note">
+                  <strong>Добавьте Steam Trade URL</strong>
+                  <span>Без персональной ссылки невозможно подготовить получение игрового предмета.</span>
+                </div>
+              ) : !hasSufficientBalance ? (
+                <div className={styles.shortfallNotice} id="insufficient-coins-note">
+                  <strong>Не хватает {formatCoins(cartShortfallCoins)} Coins</strong>
+                  <span>Рассчитайте необходимое пополнение. Платёжный провайдер пока не подключён; товары останутся в корзине.</span>
                 </div>
               ) : (
                 <div className={styles.readyNotice}>
-                  <strong>Заказ готов к оформлению</strong>
-                  <span>После покупки останется {formatCoins(balanceCoins - cartTotalCoins)} Coins.</span>
+                  <strong>Можно создать локальный заказ</strong>
+                  <span>После подтверждения останется {formatCoins(balanceCoins - cartTotalCoins)} Coins; внешняя выдача не запускается.</span>
                 </div>
               )}
 
               <div className={styles.summaryActions}>
-                {canPurchase ? (
-                  <Button className={styles.primaryLink} type="button" disabled={!accepted} aria-describedby={!accepted ? "cart-consent-helper" : undefined} onClick={() => router.push("/checkout")}>Перейти к оформлению</Button>
+                {requiresSteam && hasSteam && !steamTradeUrl ? (
+                  <Button
+                    className={styles.primaryLink}
+                    type="button"
+                    aria-describedby="trade-url-required-note"
+                    onClick={() => router.push("/account/steam?returnTo=%2Fcart")}
+                  >
+                    Добавить Steam Trade URL
+                  </Button>
+                ) : canPurchase ? (
+                  <Button className={styles.primaryLink} type="button" onClick={() => router.push("/checkout")}>Перейти к оформлению</Button>
                   ) : !isAuthenticated ? (
                     <Button
                       className={styles.primaryLink}
@@ -221,29 +217,36 @@ export function CartScreen({ showTopUpNotice = false }: { showTopUpNotice?: bool
                     >
                       {requiresSteam ? "Войти через Steam" : "Войти в аккаунт"}
                     </Button>
+                  ) : requiresSteam && !hasSteam ? (
+                    <Button
+                      className={styles.primaryLink}
+                      type="button"
+                      aria-describedby="steam-required-note"
+                      onClick={() => router.push("/auth?method=steam&returnTo=%2Fcart&required=steam")}
+                    >
+                      Подключить Steam
+                    </Button>
                   ) : !hasSufficientBalance ? (
                     <Button
                       className={styles.primaryLink}
                       type="button"
-                      disabled={!accepted}
-                      aria-describedby={!accepted ? "cart-consent-helper" : "insufficient-coins-note"}
+                      aria-describedby="insufficient-coins-note"
                       onClick={() => router.push(`/balance/top-up?returnTo=%2Fcart&requiredCoins=${cartShortfallCoins}`)}
                     >
-                      Пополнить на {formatCoins(cartShortfallCoins)} Coins
+                      Рассчитать {formatCoins(cartShortfallCoins)} Coins
                     </Button>
                   ) : (
                     <Button
                       className={styles.primaryLink}
                       type="button"
-                      disabled={!accepted}
-                      aria-describedby={!accepted ? "cart-consent-helper" : requiresSteam ? "steam-required-note" : "auth-required-note"}
+                      aria-describedby={requiresSteam ? "steam-required-note" : "auth-required-note"}
                       onClick={() => router.push(`/auth?method=${requiresSteam ? "steam" : "email"}&returnTo=%2Fcart${requiresSteam ? "&required=steam" : ""}`)}
                     >
                       {requiresSteam ? "Подключить Steam" : "Войти в аккаунт"}
                     </Button>
                   )}
               </div>
-              <p className={styles.summaryFootnote}>Оплата заказа выполняется с баланса Coins.</p>
+              <p className={styles.summaryFootnote}>Подтверждение создаёт локальную запись заказа и списание Coins.</p>
             </aside>
           </div>
         )}

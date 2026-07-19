@@ -5,6 +5,7 @@ import {
   convertCoins,
   filterProducts,
   getCartNotice,
+  normalizeCalculatorAmount,
   searchProducts,
   summarizeSteamTopUp,
 } from "./marketplace.ts";
@@ -56,6 +57,16 @@ test("поиск находит товар по связанному слову"
   ]);
 });
 
+test("autocomplete и каталог используют одинаковый токенизированный поиск", () => {
+  const products = [
+    { id: "one", category: "CS2", title: "AK-47 Redline", description: "Автомат после полевых испытаний", kind: "skins" as const, keywords: ["красный"] },
+    { id: "two", category: "Steam", title: "Пополнение Steam", description: "Баланс", kind: "steam" as const },
+  ];
+
+  assert.deepEqual(searchProducts(products, "красный автомат").map((product) => product.id), ["one"]);
+  assert.deepEqual(searchProducts(products, "АВТОМАТ красный").map((product) => product.id), ["one"]);
+});
+
 test("поиск по типу оружия не возвращает все игровые предметы", () => {
   assert.deepEqual(searchProducts(products, "пистолет").map((item) => item.id), [
     "deagle-printstream",
@@ -79,6 +90,13 @@ test("Steam расчет возвращает Coins по централизов�
     coins: 1500,
     rate: 1.5,
   });
+});
+
+test("калькуляторы отклоняют отрицательные и дробные значения", () => {
+  assert.equal(normalizeCalculatorAmount("-10"), 0);
+  assert.equal(normalizeCalculatorAmount("10.5"), 0);
+  assert.equal(normalizeCalculatorAmount(""), 0);
+  assert.equal(normalizeCalculatorAmount("1500"), 1500);
 });
 
 test("уведомление корзины не зависит от рода названия товара", () => {

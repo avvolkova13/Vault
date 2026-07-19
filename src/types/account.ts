@@ -24,13 +24,18 @@ export type MarketplaceOrder = {
   totalCoins: number;
   status: OrderStatus;
   isDemo: boolean;
+  recipient?: {
+    steamLogin?: string;
+    gptEmail?: string;
+    steamTradeUrl?: string;
+  };
 };
 
 export type CoinTransaction = {
   id: string;
   createdAt: string;
   direction: "credit" | "debit";
-  reason: "top-up" | "purchase";
+  reason: "top-up" | "purchase" | "sale";
   amountCoins: number;
   balanceAfterCoins: number;
   status: "completed" | "failed";
@@ -44,6 +49,7 @@ export type TradeEvent = {
   createdAt: string;
   direction: "purchase" | "sale" | "withdrawal";
   title: string;
+  itemId?: string;
   orderNumber?: string;
   status: "completed" | "processing" | "pending";
 };

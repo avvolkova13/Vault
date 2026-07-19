@@ -23,7 +23,7 @@ const rajdhani = Rajdhani({
 
 export const metadata: Metadata = {
   title: "Vault - цифровые товары для игр и сервисов",
-  description: "Пополнение Steam, игровые предметы и цифровые товары в одном каталоге.",
+  description: "Каталог предложений Steam, игровых предметов и цифровых товаров с ценами в Coins.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

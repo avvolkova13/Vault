@@ -22,19 +22,17 @@ export function LegalDocumentShell({
             <nav>
               {legalDocuments.map((item) => <Link key={item.id} href={item.href} aria-current={item.id === documentId ? "page" : undefined}><strong>{item.title}</strong><small>{item.shortTitle}</small></Link>)}
             </nav>
-            <p>Актуальные редакции условий работы сервиса Vault.</p>
+            <p>Условия действий, доступных в текущей версии Vault.</p>
           </aside>
 
           <article className={styles.document}>
             <header>
               <div><span>{document.shortTitle}</span><h1>{document.title}</h1></div>
-              <strong className={styles.status}>Действует</strong>
+              <strong className={styles.status}>Актуально для этой версии</strong>
             </header>
 
             <dl className={styles.documentMeta}>
-              <div><dt>Статус</dt><dd>Действующая редакция</dd></div>
-              <div><dt>Редакция</dt><dd>{document.revision}</dd></div>
-              <div><dt>Дата вступления в силу</dt><dd>{document.effectiveDate}</dd></div>
+              <div><dt>Область действия</dt><dd>Локальная версия Vault в браузере</dd></div>
             </dl>
 
             <section className={styles.pendingNotice}>

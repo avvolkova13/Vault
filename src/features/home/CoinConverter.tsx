@@ -5,14 +5,16 @@ import { useMemo, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { Container, Section } from "@/components/ui/UI";
 import { siteConfig } from "@/config/site";
-import { convertCoins, type ConverterDirection } from "@/lib/marketplace";
+import { convertCoins, normalizeCalculatorAmount, type ConverterDirection } from "@/lib/marketplace";
 
 import styles from "./home.module.css";
 
 export function CoinConverter() {
   const [direction, setDirection] = useState<ConverterDirection>("rub-to-coins");
-  const [amount, setAmount] = useState(1000);
-  const result = useMemo(() => convertCoins(amount, direction, siteConfig.coin.rate), [amount, direction]);
+  const [amount, setAmount] = useState("1000");
+  const normalizedAmount = normalizeCalculatorAmount(amount);
+  const amountInvalid = Boolean(amount.trim()) && normalizedAmount === 0 && amount.trim() !== "0";
+  const result = useMemo(() => convertCoins(amountInvalid ? 0 : normalizedAmount, direction, siteConfig.coin.rate), [amountInvalid, normalizedAmount, direction]);
   const isRubles = direction === "rub-to-coins";
 
   return (
@@ -33,7 +35,8 @@ export function CoinConverter() {
           <div className={styles.converterFields}>
             <label>
               <span>{isRubles ? "Рубли" : "Coins"}</span>
-              <input type="number" min="0" value={amount} onChange={(event) => setAmount(Number(event.target.value))} />
+              <input type="number" min="0" step="1" value={amount} aria-invalid={amountInvalid} aria-describedby={amountInvalid ? "coin-converter-error" : undefined} onChange={(event) => setAmount(event.target.value)} />
+              {amountInvalid ? <small id="coin-converter-error" role="alert">Введите целое неотрицательное значение.</small> : null}
             </label>
             <span className={styles.convertArrow}>→</span>
             <div className={styles.converterResult}>

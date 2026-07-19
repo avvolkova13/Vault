@@ -24,6 +24,13 @@ test("FAQ покрывает оплату, курс Coins, Steam Trade, дост
   }
 });
 
+test("FAQ explicitly says that physical merchandise has no shipping services", () => {
+  const shipping = faqItems.find((item) => /служб.*достав/i.test(`${item.question} ${item.answer}`));
+  assert.ok(shipping);
+  assert.match(shipping.answer, /нет физического мерча/i);
+  assert.match(shipping.answer, /служб.*доставк.*не использ/i);
+});
+
 test("карточки категорий открывают каталог с выбранным фильтром", () => {
   assert.equal(categories.find((category) => category.id === "skins")?.href, "/catalog?category=skins");
   assert.equal(categories.find((category) => category.id === "gpt")?.href, "/catalog?category=gpt");

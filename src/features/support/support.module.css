@@ -194,6 +194,15 @@
   background: #0f141c;
 }
 
+.field input:focus-visible,
+.field select:focus-visible,
+.field textarea:focus-visible,
+.categoryGrid button:focus-visible,
+.faqHeading a:focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 2px;
+}
+
 .field input[aria-invalid="true"],
 .field textarea[aria-invalid="true"] {
   border-color: #a65c64;
@@ -219,6 +228,16 @@
 
 .error {
   color: #e9a0a0;
+}
+
+.storageAlert {
+  margin: 0;
+  border: 1px solid rgba(241, 183, 85, 0.45);
+  border-radius: 8px;
+  background: rgba(241, 183, 85, 0.09);
+  padding: 12px 14px;
+  color: #f3cd87;
+  line-height: 1.5;
 }
 
 .formFooter {
@@ -274,6 +293,11 @@
 }
 
 .faqHeading a {
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
   color: #afc0f2;
   font-size: 0.68rem;
   font-weight: 700;
@@ -284,7 +308,10 @@
 }
 
 .faqList summary {
-  padding: 12px 0;
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  padding: 8px 0;
   color: #d8dfe8;
   font-size: 0.72rem;
   font-weight: 700;
@@ -334,6 +361,18 @@
 
   .sideColumn > :last-child:nth-child(3) {
     grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 1024px) {
+  .channelState a,
+  .sidePanel a,
+  .orderLinks a,
+  .formFooter a {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
   }
 }
 

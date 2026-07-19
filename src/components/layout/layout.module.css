@@ -53,7 +53,7 @@
 
 .serviceNavInner {
   display: flex;
-  min-height: 42px;
+  min-height: 44px;
   align-items: stretch;
   overflow-x: auto;
   scrollbar-width: none;
@@ -69,7 +69,7 @@
   flex: 0 0 auto;
   align-items: center;
   gap: 7px;
-  min-height: 42px;
+  min-height: 44px;
   padding-inline: 13px;
   color: #aeb8c7;
   font-size: 0.75rem;
@@ -124,6 +124,7 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  min-height: 44px;
   width: fit-content;
   font-family: var(--font-rajdhani), var(--font-inter), sans-serif;
   font-size: 1.05rem;
@@ -293,6 +294,7 @@
 }
 
 .headerMessage button {
+  min-height: 44px;
   border: 0;
   background: transparent;
   color: var(--accent-hover);
@@ -340,7 +342,7 @@
   display: flex;
   align-items: flex-start;
   flex-direction: column;
-  gap: 10px;
+  gap: 0;
 }
 
 .footerColumn h2 {
@@ -352,6 +354,14 @@
 .footerColumn span {
   color: var(--text-secondary);
   font-size: 0.78rem;
+}
+
+.footerColumn a {
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
 }
 
 .footerColumn a:hover {
@@ -374,7 +384,7 @@
   border: 1px solid var(--border-strong);
   border-radius: 7px;
   padding: 0;
-  background: #10151d;
+  background: var(--surface-raised);
 }
 
 .paymentLogo img {
@@ -427,6 +437,7 @@
 }
 
 @media (max-width: 900px) {
+  .utilityBar a { display: inline-flex; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; }
   .utilityBar {
     display: none;
   }
@@ -471,6 +482,28 @@
   }
 }
 
+@media (max-width: 1024px) {
+  .footerMain {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 30px 26px;
+  }
+
+  .footerBrand {
+    grid-column: 1 / -1;
+  }
+
+  .utilityBar a,
+  .serviceNavInner a,
+  .footerColumn a,
+  .mobileAccountLink {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
 @media (max-width: 620px) {
   .headerContainer,
   .mainGrid,
@@ -507,4 +540,6 @@
   .footerBottom {
     flex-direction: column;
   }
+
+  .paymentMethods { grid-template-columns: repeat(2, 52px); }
 }
