@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   title: "Вход — Vault",
   description: "Вход в Vault через Steam или Email.",
 };
+export const dynamic = "force-static";
 
 type AuthPageProps = {
   searchParams: Promise<{

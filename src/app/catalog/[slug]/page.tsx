@@ -8,7 +8,6 @@ import { getProductBySlug, getRelatedProducts } from "@/lib/products";
 
 type ProductPageProps = {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ returnTo?: string | string[] }>;
 };
 
 export const dynamicParams = false;
@@ -31,9 +30,8 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   };
 }
 
-export default async function ProductPage({ params, searchParams }: ProductPageProps) {
+export default async function ProductPage({ params }: ProductPageProps) {
   const { slug } = await params;
-  const query = await searchParams;
   const product = getProductBySlug(catalogProducts, slug);
 
   if (!product) notFound();
@@ -42,7 +40,7 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
     <ProductDetailScreen
       product={product}
       relatedProducts={getRelatedProducts(catalogProducts, product, 4)}
-      catalogReturnHref={sanitizeCatalogReturnPath(Array.isArray(query.returnTo) ? query.returnTo[0] : query.returnTo)}
+      catalogReturnHref={sanitizeCatalogReturnPath("/catalog")}
     />
   );
 }

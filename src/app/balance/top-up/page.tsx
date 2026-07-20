@@ -12,6 +12,7 @@ export const metadata: Metadata = {
   title: "Пополнение баланса — Vault",
   description: "Калькулятор суммы Coins по фиксированному курсу Vault.",
 };
+export const dynamic = "force-static";
 
 type TopUpPageProps = {
   searchParams: Promise<{ requiredCoins?: TopUpSearchValue; returnTo?: TopUpSearchValue }>;
