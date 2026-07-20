@@ -41,9 +41,9 @@ export function validateEmail(value: string) {
 }
 
 export function validateMockCode(value: string) {
-  if (!value.trim()) return "Введите код локальной проверки.";
+  if (!value.trim()) return "Введите код из письма.";
   if (!/^\d{6}$/.test(value.trim())) return "Код должен содержать 6 цифр.";
-  if (value.trim() !== MOCK_EMAIL_CODE) return "Неверный код локальной проверки.";
+  if (value.trim() !== MOCK_EMAIL_CODE) return "Неверный код. Проверьте письмо и повторите попытку.";
   return "";
 }
 

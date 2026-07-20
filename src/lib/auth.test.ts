@@ -20,9 +20,9 @@ test("email проходит обязательную и форматную ва
 });
 
 test("одноразовый email-код проходит обязательную и форматную проверку", () => {
-  assert.equal(validateMockCode(""), "Введите код локальной проверки.");
+  assert.equal(validateMockCode(""), "Введите код из письма.");
   assert.equal(validateMockCode("123"), "Код должен содержать 6 цифр.");
-  assert.equal(validateMockCode("123456"), "Неверный код локальной проверки.");
+  assert.equal(validateMockCode("123456"), "Неверный код. Проверьте письмо и повторите попытку.");
   assert.equal(validateMockCode("482913"), "");
 });
 

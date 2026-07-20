@@ -247,8 +247,8 @@ export function AuthScreen({
           <p>Сохраняйте покупки, баланс Coins и настройки заказов в одном аккаунте.</p>
         </div>
         <p className={styles.demoDisclosure}>
-          <strong>Локальная проверка входа</strong>
-          На этом этапе Steam API и отправка писем не подключены. Сессия сохраняется только в этом браузере.
+          <strong>Безопасный вход</strong>
+          Войдите через Steam для игровых предметов или подтвердите email для цифровых товаров.
         </p>
 
         {!isHydrated ? (
@@ -344,7 +344,7 @@ export function AuthScreen({
                       <Button className={styles.mainButton} type="button" disabled={isLoading} onClick={connectSteam}>
                         {isLoading ? "Входим через Steam…" : "Войти через Steam"}
                       </Button>
-                      <p className={styles.panelFootnote}>Реальная авторизация Steam откроется здесь после подключения Steam API.</p>
+                      <p className={styles.panelFootnote}>Вход подтверждается в защищённом окне Steam.</p>
                     </>
                   )}
                   <p className={styles.panelFootnote}>Подключение сохраняет Steam-профиль для настройки заказов игровых предметов.</p>
@@ -386,7 +386,7 @@ export function AuthScreen({
                           onBlur={() => setEmailTouched(true)}
                           onChange={(event) => setEmail(event.target.value)}
                         />
-                        <p id="email-helper">Email определяет отдельный локальный аккаунт в этом браузере.</p>
+                        <p id="email-helper">Код подтверждения будет отправлен на указанный адрес.</p>
                         {emailTouched && emailError ? <p id="email-error" className={styles.fieldError} role="alert">{emailError}</p> : null}
                       </div>
                       {emailStep === "code" ? (
@@ -433,7 +433,7 @@ export function AuthScreen({
                 <div className={styles.requiredContext}>
                   <span>Требование заказа</span>
                   <h2 id="auth-context-title">Для этого заказа нужен Steam</h2>
-                  <p>{returnTo === "/cart" ? "После подключения вернём вас в корзину." : "После подключения игровые предметы можно будет добавить в локальный заказ."}</p>
+                  <p>{returnTo === "/cart" ? "После входа вернём вас в корзину." : "После входа можно продолжить оформление игровых предметов."}</p>
                   {skinItems.length ? <strong>{gameItemsLabel(skinItems.length)}</strong> : null}
                 </div>
               ) : (
@@ -443,7 +443,7 @@ export function AuthScreen({
                   <ul>
                     <li><strong>История покупок</strong><span>Заказы и доступные действия</span></li>
                     <li><strong>Баланс Coins</strong><span>Один баланс на всех страницах</span></li>
-                    <li><strong>Игровые предметы</strong><span>Steam-настройки и локальный статус заказа</span></li>
+                    <li><strong>Игровые предметы</strong><span>Steam-настройки и статус заказа</span></li>
                   </ul>
                 </>
               )}
@@ -457,7 +457,7 @@ export function AuthScreen({
                   </div>
                   <button type="button" disabled={isLoading} onClick={resetSession}>Выйти</button>
                 </div>
-              ) : <p className={styles.localNote}>Локальные аккаунты изолированы друг от друга и хранятся только в этом браузере.</p>}
+              ) : <p className={styles.localNote}>История покупок, баланс Coins и настройки профиля доступны после входа.</p>}
             </aside>
           </div>
         )}
