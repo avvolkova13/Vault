@@ -416,8 +416,13 @@
   /* Keep the short metadata pills on one line in the compact hero cards. */
   white-space: nowrap;
   font-size: 0.62rem;
-  font-weight: 500;
+  font-weight: 400;
   letter-spacing: 0;
+}
+
+.compactCard .productState .status {
+  font-weight: 400;
+  letter-spacing: 0.02em;
 }
 
 .compactCard .productBody h2,
