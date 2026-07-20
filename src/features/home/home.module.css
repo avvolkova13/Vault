@@ -764,7 +764,23 @@
 .steamForm > button {
   width: 100%;
 }
-.steamCatalogLink { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; margin-top: 10px; border: 1px solid var(--border-strong); border-radius: var(--radius-control); color: #c7d4f6; font-size: .78rem; font-weight: 700; }
+.steamCatalogLink {
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 10px;
+  padding: 0 18px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  color: #c7d4f6;
+  font-size: .78rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
 
 .converterSection {
   padding-block: 34px;
