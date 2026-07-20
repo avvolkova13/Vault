@@ -889,7 +889,7 @@
 
 .newItem {
   display: grid;
-  grid-template-columns: 92px minmax(0, 1fr) 126px 120px 94px;
+  grid-template-columns: 92px minmax(0, 1fr) 126px 120px 120px;
   align-items: center;
   gap: 16px;
   min-height: 112px;
@@ -960,7 +960,9 @@
 
 .newItem > button {
   min-height: 44px;
+  padding-inline: 12px;
   font-size: 0.76rem;
+  white-space: nowrap;
 }
 
 .stepsSection {
@@ -1167,7 +1169,7 @@
   }
 
   .newItem {
-    grid-template-columns: 82px minmax(0, 1fr) 116px 90px;
+    grid-template-columns: 82px minmax(0, 1fr) 116px 112px;
   }
 
   .newThumb {
