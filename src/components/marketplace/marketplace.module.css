@@ -427,7 +427,7 @@
 
 .compactCard .productBody h2,
 .compactCard .productBody h3 {
-  min-height: auto;
+  min-height: 2.7em;
   margin-top: 8px;
   font-size: 0.82rem;
   word-break: keep-all;
