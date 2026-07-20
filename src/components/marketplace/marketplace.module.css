@@ -412,6 +412,14 @@
   aspect-ratio: 1.35 / 0.84;
 }
 
+.compactCard .productMeta span {
+  /* Keep the short metadata pills on one line in the compact hero cards. */
+  white-space: nowrap;
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
 .compactCard .productBody h2,
 .compactCard .productBody h3 {
   min-height: auto;
