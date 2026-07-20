@@ -430,6 +430,8 @@
   min-height: auto;
   margin-top: 8px;
   font-size: 0.82rem;
+  word-break: keep-all;
+  overflow-wrap: normal;
 }
 
 .compactCard .productMeta span:nth-child(n + 3) {
