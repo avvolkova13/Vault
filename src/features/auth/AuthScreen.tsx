@@ -378,7 +378,7 @@ export function AuthScreen({
                           name="email"
                           type="email"
                           autoComplete="email"
-                          placeholder="name@example.com"
+                          placeholder="Введите email"
                           value={email}
                           disabled={isLoading || emailStep === "code"}
                           aria-invalid={emailTouched && !!emailError}
