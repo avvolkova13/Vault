@@ -261,7 +261,7 @@ export function AuthScreen({
             <section className={styles.authCard} aria-labelledby="auth-method-title">
               <div className={styles.cardHeading}>
                 <span>Способ входа</span>
-                <h2 id="auth-method-title">Выберите аккаунт</h2>
+                <h2 id="auth-method-title">Выберите способ входа</h2>
               </div>
 
               <div className={styles.tabs} role="tablist" aria-label="Способ авторизации">
@@ -342,7 +342,7 @@ export function AuthScreen({
                   ) : (
                     <>
                       <Button className={styles.mainButton} type="button" disabled={isLoading} onClick={connectSteam}>
-                        {isLoading ? "Активируем профиль…" : "Активировать Steam-профиль"}
+                        {isLoading ? "Входим через Steam…" : "Войти через Steam"}
                       </Button>
                       <p className={styles.panelFootnote}>Реальная авторизация Steam откроется здесь после подключения Steam API.</p>
                     </>
@@ -419,7 +419,7 @@ export function AuthScreen({
                       ) : null}
                       {formError ? <p className={styles.formError} role="alert">{formError}</p> : null}
                       <Button className={styles.mainButton} type="submit" disabled={isLoading || !localEmailCheckAvailable}>
-                        {isLoading ? "Проверяем…" : emailStep === "email" ? "Показать код" : "Подтвердить и войти"}
+                        {isLoading ? "Отправляем…" : emailStep === "email" ? "Отправить код" : "Подтвердить и войти"}
                       </Button>
                       <p className={styles.panelFootnote}>Код действует только для подтверждения этого входа.</p>
                     </>
