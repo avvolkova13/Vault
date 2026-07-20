@@ -1,5 +1,9 @@
 import type { CoinConfig } from "@/types/commerce";
 
+export function publicAssetPath(path: string) {
+  return `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}${path}`;
+}
+
 export const siteConfig = {
   name: "Vault",
   description: "Маркетплейс Steam, игровых предметов и цифровых товаров.",

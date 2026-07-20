@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 
 import { Button, StatusBadge } from "@/components/ui/UI";
 import { Icon } from "@/components/ui/Icon";
+import { publicAssetPath } from "@/config/site";
 import { getCatalogScrollStorageKey, getProductStatusLabel, shouldStoreCatalogScroll } from "@/lib/catalog";
 import type { Product } from "@/types/commerce";
 
@@ -16,7 +17,7 @@ function ProductVisual({ product, priority = false }: { product: Product; priori
   if (product.image) {
     return (
       <Image
-        src={product.image}
+        src={publicAssetPath(product.image)}
         alt={product.imageAlt ?? product.title}
         fill
         priority={priority}

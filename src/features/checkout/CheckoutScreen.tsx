@@ -10,6 +10,7 @@ import {
   useMarketplace,
 } from "@/components/marketplace/MarketplaceProvider";
 import { Breadcrumbs, Button, Checkbox, Container, Skeleton, StatusBadge } from "@/components/ui/UI";
+import { publicAssetPath } from "@/config/site";
 import { canSubmitCheckout, createCheckoutReviewKey, getCheckoutGate, type CheckoutGate } from "@/lib/checkout";
 import { validateFulfillmentInput, type FulfillmentInput } from "@/lib/fulfillment";
 import { getProductVisualLabel } from "@/lib/product-visual";
@@ -43,7 +44,7 @@ function formatCoins(value: number) {
 
 function CheckoutMedia({ product }: { product: Product }) {
   if (product.image) {
-    return <Image src={product.image} alt={product.imageAlt ?? ""} fill sizes="(max-width: 720px) 92px, 116px" />;
+    return <Image src={publicAssetPath(product.image)} alt={product.imageAlt ?? ""} fill sizes="(max-width: 720px) 92px, 116px" />;
   }
 
   return <span className={styles.serviceMedia} aria-hidden="true"><strong>{getProductVisualLabel(product)}</strong><small>{product.productType}</small></span>;

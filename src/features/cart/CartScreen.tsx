@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { useMarketplace } from "@/components/marketplace/MarketplaceProvider";
 import { Breadcrumbs, Button, Container, Skeleton, StatusBadge } from "@/components/ui/UI";
+import { publicAssetPath } from "@/config/site";
 import { getCartItemsLabel } from "@/lib/cart";
 import { getProductStatusLabel } from "@/lib/catalog";
 import { getProductVisualLabel } from "@/lib/product-visual";
@@ -27,7 +28,7 @@ function CartMedia({ product }: { product: Product }) {
   if (product.image) {
     return (
       <Image
-        src={product.image}
+        src={publicAssetPath(product.image)}
         alt={product.imageAlt ?? ""}
         fill
         sizes="(max-width: 720px) 96px, 132px"

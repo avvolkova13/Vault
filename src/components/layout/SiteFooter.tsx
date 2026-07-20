@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 
 import { Icon } from "@/components/ui/Icon";
-import { siteConfig } from "@/config/site";
+import { publicAssetPath, siteConfig } from "@/config/site";
 
 import styles from "./layout.module.css";
 
@@ -37,7 +37,7 @@ export function SiteFooter() {
           <div className={styles.paymentMethods} aria-label="Платёжные системы">
             {siteConfig.paymentMethods.map((method) => (
               <span className={styles.paymentLogo} key={method.name} title={method.name}>
-                <Image src={method.src} alt={method.name} width={38} height={22} />
+                <Image src={publicAssetPath(method.src)} alt={method.name} width={38} height={22} />
               </span>
             ))}
           </div>

@@ -7,6 +7,7 @@ import { Fragment, useMemo, useState, type ReactNode } from "react";
 
 import { useMarketplace } from "@/components/marketplace/MarketplaceProvider";
 import { Button, StatusBadge } from "@/components/ui/UI";
+import { publicAssetPath } from "@/config/site";
 import { SupportCenter } from "@/features/support/SupportCenter";
 import {
   getOverviewTransactions,
@@ -203,7 +204,7 @@ function Overview() {
         </section>
         <section className={styles.panel}>
           <SectionHeading label="Предметы" title="Инвентарь" description="Игровые предметы из выполненных заказов." action={<Link href="/account/inventory">Открыть</Link>} />
-          {inventory.length ? <div className={styles.inventoryMini}>{inventory.slice(0, 2).map((item) => <div key={item.id}>{item.image ? <span><Image src={item.image} alt={item.imageAlt ?? ""} fill sizes="72px" /></span> : null}<p><strong>{item.title}</strong><small>{formatCoins(item.priceCoins)} Coins · Сохранено в локальном инвентаре</small></p></div>)}</div> : <p className={styles.mutedCopy}>Выполненных заказов с игровыми предметами пока нет.</p>}
+          {inventory.length ? <div className={styles.inventoryMini}>{inventory.slice(0, 2).map((item) => <div key={item.id}>{item.image ? <span><Image src={publicAssetPath(item.image)} alt={item.imageAlt ?? ""} fill sizes="72px" /></span> : null}<p><strong>{item.title}</strong><small>{formatCoins(item.priceCoins)} Coins · Сохранено в локальном инвентаре</small></p></div>)}</div> : <p className={styles.mutedCopy}>Выполненных заказов с игровыми предметами пока нет.</p>}
         </section>
       </div>
       <TradeLog events={tradeEvents} />
@@ -256,7 +257,7 @@ function Inventory() {
               return (
                 <article key={item.id}>
                   <Link className={styles.inventoryMedia} href={`/catalog/${item.slug}`} aria-label={`Открыть товар «${item.title}»`}>
-                    {item.image ? <Image src={item.image} alt={item.imageAlt ?? ""} fill sizes="(max-width: 720px) 100vw, 360px" priority={index === 0} /> : <span className={styles.inventoryFallback} aria-hidden="true">VLT</span>}
+                    {item.image ? <Image src={publicAssetPath(item.image)} alt={item.imageAlt ?? ""} fill sizes="(max-width: 720px) 100vw, 360px" priority={index === 0} /> : <span className={styles.inventoryFallback} aria-hidden="true">VLT</span>}
                   </Link>
                   <div className={styles.inventoryCardBody}>
                     <div className={styles.inventoryCardTopline}><span>Игровой предмет</span><StatusBadge tone={isSteamDataConfigured ? "success" : "warning"}>{isSteamDataConfigured ? "Настройки сохранены" : "Нужна настройка"}</StatusBadge></div>

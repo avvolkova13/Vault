@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ProductCard } from "@/components/marketplace/ProductCard";
 import { Icon } from "@/components/ui/Icon";
 import { Breadcrumbs, Container, StatusBadge } from "@/components/ui/UI";
+import { publicAssetPath } from "@/config/site";
 import { getProductStatusLabel } from "@/lib/catalog";
 import { getProductVisualLabel } from "@/lib/product-visual";
 import type { Product } from "@/types/commerce";
@@ -16,7 +17,7 @@ function ProductArtwork({ product }: { product: Product }) {
   if (product.image) {
     return (
       <Image
-        src={product.image}
+        src={publicAssetPath(product.image)}
         alt={product.imageAlt ?? product.title}
         fill
         priority

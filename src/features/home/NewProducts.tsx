@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { useMarketplace } from "@/components/marketplace/MarketplaceProvider";
 import { Button, Container, Section, SectionHeading, StatusBadge } from "@/components/ui/UI";
+import { publicAssetPath } from "@/config/site";
 import { getProductStatusLabel } from "@/lib/catalog";
 import { getProductVisualLabel } from "@/lib/product-visual";
 import type { Product } from "@/types/commerce";
@@ -25,7 +26,7 @@ export function NewProducts({ products }: { products: Product[] }) {
               <article key={product.id} className={styles.newItem}>
                 <Link className={styles.newThumb} href={`/catalog/${product.slug}`} aria-hidden="true" tabIndex={-1}>
                   {product.image ? (
-                    <Image src={product.image} alt={product.imageAlt ?? product.title} fill sizes="92px" />
+                    <Image src={publicAssetPath(product.image)} alt={product.imageAlt ?? product.title} fill sizes="92px" />
                   ) : (
                     <span>{getProductVisualLabel(product)}</span>
                   )}
